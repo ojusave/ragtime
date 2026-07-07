@@ -15,7 +15,7 @@
     "suggest-matrix": "pnpm --filter @ragtime/gateway-openrouter suggest-matrix"
   },
   "engines": {
-    "node": ">=20"
+    "node": "20.x"
   },
   "packageManager": "pnpm@9.15.0"
 }

@@ -172,9 +172,6 @@ importers:
       '@ragtime/core':
         specifier: workspace:*
         version: link:../core
-      '@ragtime/gateway-openrouter':
-        specifier: workspace:*
-        version: link:../gateway-openrouter
       drizzle-orm:
         specifier: ^0.39.3
         version: 0.39.3(postgres@3.4.9)
