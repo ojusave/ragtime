@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
+    "build:workflows": "pnpm --filter @ragtime/workflows... build",
     "dev": "pnpm --filter @ragtime/web dev",
     "db:migrate": "pnpm --filter @ragtime/db migrate",
     "db:generate": "pnpm --filter @ragtime/db generate",

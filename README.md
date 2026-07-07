@@ -55,7 +55,7 @@ Render Blueprints do not yet support Workflow services. In the Dashboard:
 1. **New > Workflow**
 2. Connect the same repo
 3. **Root Directory**: leave empty (repo root; required for pnpm workspace packages)
-4. **Build Command**: `pnpm install && pnpm --filter @ragtime/workflows build`
+4. **Build Command**: `pnpm install && pnpm build:workflows` (builds workspace deps + workflows)
 5. **Start Command**: `node apps/workflows/dist/index.js`
 6. **Region**: same as web + database (private networking)
 7. Note the **Workflow Slug** (e.g. `ragtime-workflows`) and set `WORKFLOW_SLUG` on the web service to match

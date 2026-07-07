@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "prebuild": "pnpm --filter @ragtime/core --filter @ragtime/db --filter @ragtime/gateway-fake --filter @ragtime/gateway-openrouter build",
     "build": "tsc -p tsconfig.json",
     "start": "node dist/index.js",
     "dev": "tsx watch src/index.ts"
