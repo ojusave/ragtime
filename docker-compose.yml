@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: ragtime
+      POSTGRES_PASSWORD: ragtime
+      POSTGRES_DB: ragtime
+    volumes:
+      - ragtime_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ragtime -d ragtime"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  ragtime_pgdata:

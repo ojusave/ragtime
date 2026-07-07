@@ -1,0 +1,30 @@
+import postgres from "postgres";
+import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import * as schema from "./schema.js";
+
+export type Db = PostgresJsDatabase<typeof schema>;
+
+let _db: Db | null = null;
+let _client: ReturnType<typeof postgres> | null = null;
+
+export function getDb(): Db {
+  if (_db) return _db;
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL is required");
+  _client = postgres(url, {
+    ssl: url.includes("localhost") ? false : { rejectUnauthorized: false },
+    max: 10,
+  });
+  _db = drizzle(_client, { schema });
+  return _db;
+}
+
+export async function closeDb(): Promise<void> {
+  if (_client) {
+    await _client.end();
+    _client = null;
+    _db = null;
+  }
+}
+
+export { schema };

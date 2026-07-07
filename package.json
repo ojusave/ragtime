@@ -1,0 +1,21 @@
+{
+  "name": "ragtime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "RAG bake-off arena: compare embedding, rerank, and generation models via Render Workflows and OpenRouter",
+  "type": "module",
+  "scripts": {
+    "build": "pnpm -r build",
+    "dev": "pnpm --filter @ragtime/web dev",
+    "db:migrate": "pnpm --filter @ragtime/db migrate",
+    "db:generate": "pnpm --filter @ragtime/db generate",
+    "seed": "pnpm --filter @ragtime/db seed",
+    "smoke": "if [ -n \"$OPENROUTER_API_KEY\" ]; then pnpm --filter @ragtime/gateway-openrouter smoke; else echo 'Skipping OpenRouter smoke (no OPENROUTER_API_KEY)'; fi && MODEL_GATEWAY=fake pnpm --filter @ragtime/gateway-fake smoke",
+    "smoke:fake": "MODEL_GATEWAY=fake pnpm --filter @ragtime/gateway-fake smoke",
+    "suggest-matrix": "pnpm --filter @ragtime/gateway-openrouter suggest-matrix"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@9.15.0"
+}

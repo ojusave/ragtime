@@ -1,0 +1,27 @@
+{
+  "name": "@ragtime/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@langchain/textsplitters": "^0.1.0",
+    "html-to-text": "^9.0.5",
+    "zod": "^3.24.2"
+  },
+  "devDependencies": {
+    "@types/html-to-text": "^9.0.4",
+    "@types/node": "^22.13.10",
+    "typescript": "^5.7.3"
+  }
+}
