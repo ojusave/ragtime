@@ -2,6 +2,7 @@ import { AppShell, Group, Anchor, Title } from "@mantine/core";
 import { Routes, Route, Link } from "react-router-dom";
 import { GITHUB_REPO_URL } from "./lib/render-links";
 import RenderCtas from "./components/RenderCtas";
+import ThemeToggle from "./components/ThemeToggle";
 import HomePage from "./pages/HomePage";
 import CorpusPage from "./pages/CorpusPage";
 import InspectPage from "./pages/InspectPage";
@@ -14,10 +15,13 @@ export default function App() {
     <AppShell header={{ height: 56 }} padding="md">
       <AppShell.Header>
         <Group h="100%" px="md" justify="space-between" wrap="nowrap">
-          <Anchor component={Link} to="/" underline="never" c="dark">
+          <Anchor component={Link} to="/" underline="never" c="inherit">
             <Title order={3}>RAGtime</Title>
           </Anchor>
-          <RenderCtas />
+          <Group gap="xs" wrap="nowrap">
+            <ThemeToggle />
+            <RenderCtas />
+          </Group>
         </Group>
       </AppShell.Header>
       <AppShell.Main>

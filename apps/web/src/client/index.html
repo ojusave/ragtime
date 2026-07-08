@@ -5,6 +5,12 @@
     <link rel="icon" href="https://render.com/favicon.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>RAGtime</title>
+    <script>
+      try {
+        var scheme = localStorage.getItem("mantine-color-scheme-value") || "light";
+        document.documentElement.setAttribute("data-mantine-color-scheme", scheme);
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>
