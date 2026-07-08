@@ -80,7 +80,7 @@ export default function RunPage() {
       ACTIVE.has(q.state.data?.run.status ?? "") ? 2000 : false,
   });
 
-  const { data: trialDetail, isLoading: trialLoading } = useQuery({
+  const { data: trialDetail, isLoading: trialLoading, isError: trialError, error: trialDetailError } = useQuery({
     queryKey: ["trial", drillTrial],
     queryFn: () =>
       api<{
@@ -258,7 +258,12 @@ export default function RunPage() {
                 </Text>
               </Stack>
             )}
-            {trialDetail && (
+            {trialError && (
+              <Alert color="red" title={COPY.common.loadFailed}>
+                {friendlyError(trialDetailError?.message ?? "Could not load test detail")}
+              </Alert>
+            )}
+            {trialDetail && !trialLoading && (
               <Stack gap="sm">
                 <Text size="sm" c="dimmed">
                   {trialDetail.combo.embeddingModel} / {trialDetail.combo.rerankModel ?? "no rerank"} /{" "}

@@ -12,7 +12,7 @@ import {
   envNumber,
   comboLabel,
 } from "@ragtime/core";
-import { getDb, schema, getComboResults, listRunEvents, getPhaseCounters } from "@ragtime/db";
+import { getDb, schema, getComboResults, listRunEvents, getPhaseCounters, getChunksByIds } from "@ragtime/db";
 import { createGateway } from "./wiring.js";
 import { registerInspectRoutes } from "./inspect.js";
 
@@ -377,18 +377,13 @@ export async function buildServer() {
       ...(stages.rerank?.keptChunkIds ?? []),
     ];
     const uniqueIds = [...new Set(chunkIds)];
-    const chunkRows =
-      uniqueIds.length > 0
-        ? await db.execute<{ id: string; idx: number; content: string }>(sql`
-            SELECT id, idx, content FROM chunks WHERE id = ANY(${uniqueIds}::uuid[])
-          `)
-        : [];
+    const chunkMap = await getChunksByIds(db, uniqueIds);
     return {
       data: {
         trial,
         combo,
         question,
-        chunks: chunkRows.map((c) => ({ id: c.id, idx: c.idx, content: c.content })),
+        chunks: [...chunkMap.values()],
       },
     };
   });
