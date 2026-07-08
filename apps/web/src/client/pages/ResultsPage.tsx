@@ -33,13 +33,19 @@ export default function ResultsPage() {
     (a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0)
   );
 
-  const chartData = sorted
-    .filter((c) => c.avgCostPerQuestion != null && c.avgScore != null)
-    .map((c) => ({
-      label: c.label ?? c.genModel,
-      cost: c.avgCostPerQuestion!,
-      quality: c.avgScore!,
-    }));
+  const scatterSeries = [
+    {
+      name: "Model setups",
+      color: "blue.6",
+      data: sorted
+        .filter((c) => c.avgCostPerQuestion != null && c.avgScore != null)
+        .map((c) => ({
+          cost: c.avgCostPerQuestion!,
+          quality: c.avgScore!,
+          label: c.label ?? c.genModel,
+        })),
+    },
+  ];
 
   return (
     <QueryState
@@ -138,29 +144,32 @@ export default function ResultsPage() {
             )}
           </Card>
 
-          {chartData.length > 0 && (
+          {scatterSeries[0].data.length > 0 && (
             <Card withBorder>
               <Text fw={600} mb="md">
                 {COPY.results.chartTitle}
               </Text>
               <ScatterChart
                 h={360}
-                data={chartData}
+                data={scatterSeries}
                 dataKey={{ x: "cost", y: "quality" }}
                 xAxisLabel="Cost per question (USD)"
                 yAxisLabel="Quality score"
+                labels={{ x: "Cost (USD)", y: "Quality" }}
                 withTooltip
                 tooltipProps={{
                   content: ({ payload }) => {
                     const row = payload?.[0]?.payload as
-                      | { label: string; cost: number; quality: number }
+                      | { label?: string; cost: number; quality: number }
                       | undefined;
                     if (!row) return null;
                     return (
                       <Stack gap={2} p="xs">
-                        <Text size="xs" fw={600}>
-                          {row.label}
-                        </Text>
+                        {row.label && (
+                          <Text size="xs" fw={600}>
+                            {row.label}
+                          </Text>
+                        )}
                         <Text size="xs">Quality: {row.quality.toFixed(2)}</Text>
                         <Text size="xs">Cost: ${row.cost.toFixed(4)}</Text>
                       </Stack>
