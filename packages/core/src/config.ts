@@ -23,9 +23,9 @@ export function getAppConfig() {
     maxRunBudgetUsd: envNumber("MAX_RUN_BUDGET_USD", 5),
     embedBatchSize: envNumber("EMBED_BATCH_SIZE", 64),
     /** Max parallel workflow subtasks when embedding a corpus (per model). */
-    embedFanoutBatch: envNumber("EMBED_FANOUT_BATCH", 8),
+    embedFanoutBatch: envNumber("EMBED_FANOUT_BATCH", 6),
     /** Max parallel run_trial subtasks per wave during a bake-off. */
-    trialFanoutBatch: envNumber("TRIAL_FANOUT_BATCH", 12),
+    trialFanoutBatch: envNumber("TRIAL_FANOUT_BATCH", 8),
     /** Postgres pool size per workflow/web process. Keep low on basic Postgres plans. */
     dbPoolMax: envNumber("DB_POOL_MAX", 3),
     /** Hard cap on trials per bake-off (combos × questions). Protects basic Postgres. */
