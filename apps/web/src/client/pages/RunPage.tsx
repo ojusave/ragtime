@@ -22,7 +22,7 @@ import QueryState from "../components/QueryState";
 import TrialGrid from "../components/TrialGrid";
 import TrialStagesPanel from "../components/TrialStagesPanel";
 import { api } from "../lib/api";
-import { friendlyError, runStatusLabel } from "../lib/copy";
+import { COPY, FLOW_STEPS, friendlyError, runStatusLabel } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
 import type { ComboResult, TrialStages } from "@ragtime/core";
 
@@ -111,7 +111,7 @@ export default function RunPage() {
     setCanceling(true);
     try {
       await api(`/api/runs/${id}/cancel`, { method: "POST" });
-      notifySuccess("Run canceled");
+      notifySuccess(COPY.notify.comparisonStopped);
       setCancelOpen(false);
       refetch();
     } catch (e) {
@@ -136,10 +136,10 @@ export default function RunPage() {
         <Stack gap="md">
           <PageHeader
             title={data.run.name}
-            description="Live evaluation progress. Click any cell to inspect a single model stack on one question."
+            description={COPY.run.description}
             crumbs={[
               { label: "Home", to: "/" },
-              { label: "Corpus", to: `/corpus/${data.run.corpusId}` },
+              { label: "Dataset", to: `/corpus/${data.run.corpusId}` },
               { label: data.run.name },
             ]}
             actions={
@@ -148,61 +148,57 @@ export default function RunPage() {
                   {runStatusLabel(data.run.status)}
                 </Badge>
                 <Button variant="outline" component={Link} to={`/run/${id}/results`}>
-                  View results
+                  {COPY.run.viewResults}
                 </Button>
                 {ACTIVE.has(data.run.status) && (
                   <Button color="red" variant="outline" onClick={() => setCancelOpen(true)}>
-                    Cancel run
+                    {COPY.run.cancel}
                   </Button>
                 )}
               </Group>
             }
           />
 
-          <FlowSteps active={2} steps={[
-            { label: "Dataset" },
-            { label: "Configure" },
-            { label: "Run" },
-            { label: "Results" },
-          ]} />
+          <FlowSteps active={2} steps={[...FLOW_STEPS]} />
 
           {data.run.status === "failed" && (
-            <Alert color="red" title="Run failed">
-              {data.run.error ? friendlyError(data.run.error) : "Check Render workflow logs for details."}
+            <Alert color="red" title={COPY.run.failedTitle}>
+              {data.run.error ? friendlyError(data.run.error) : COPY.run.failedBody}
             </Alert>
           )}
 
           {data.run.status === "complete" && !allTrialsDone && (
-            <Alert color="orange" title="Run marked complete but evaluations are still finishing">
-              {complete} of {total} evaluations finished. {pendingOrRunning} still pending or in
-              progress. Results may be incomplete until all evaluations finish.
+            <Alert color="orange" title={COPY.run.incompleteTitle}>
+              {COPY.run.incompleteBody(complete, total, pendingOrRunning)}
             </Alert>
           )}
 
           {(data.run.status === "complete" || data.run.status === "budget_exceeded") && (
             <Checkbox
-              label="Stay on this page (don't auto-open results)"
+              label={COPY.run.stayOnPage}
               checked={stayOnPage}
               onChange={(e) => setStayOnPage(e.currentTarget.checked)}
             />
           )}
 
           <Text>
-            Spend: ${Number(data.run.totalCostUsd).toFixed(2)} / $
-            {Number(data.run.budgetUsd).toFixed(2)}
+            {COPY.run.spend(
+              Number(data.run.totalCostUsd).toFixed(2),
+              Number(data.run.budgetUsd).toFixed(2)
+            )}
           </Text>
-          <Progress value={total ? (complete / total) * 100 : 0} size="lg" aria-label="Evaluation progress" />
+          <Progress value={total ? (complete / total) * 100 : 0} size="lg" aria-label="Test progress" />
           <Text size="sm" c="dimmed">
-            {complete} / {total} evaluations complete
+            {COPY.run.progress(complete, total)}
           </Text>
 
           <Text size="sm" c="dimmed">
-            Documents indexed: {data.phases?.documents.ready ?? 0} / {data.phases?.documents.total ?? 0}
+            {COPY.run.docsIndexed(data.phases?.documents.ready ?? 0, data.phases?.documents.total ?? 0)}
           </Text>
           {(data.phases?.embeddings ?? []).map((e) => (
             <div key={e.model}>
               <Text size="xs" mb={4}>
-                Embeddings ({e.model.split("/").pop()}): {e.done} / {e.total}
+                {COPY.run.embeddings(e.model, e.done, e.total)}
               </Text>
               <Progress value={e.total ? (e.done / e.total) * 100 : 0} size="sm" mb="sm" />
             </div>
@@ -243,13 +239,13 @@ export default function RunPage() {
             opened={Boolean(drillTrial)}
             onClose={() => setDrillTrial(null)}
             size="xl"
-            title="Evaluation detail"
+            title={COPY.run.detailTitle}
           >
             {trialLoading && (
               <Stack align="center" py="md">
                 <Loader size="sm" />
                 <Text size="sm" c="dimmed">
-                  Loading evaluation…
+                  {COPY.common.loading}
                 </Text>
               </Stack>
             )}
@@ -259,12 +255,14 @@ export default function RunPage() {
                   {trialDetail.combo.embeddingModel} / {trialDetail.combo.rerankModel ?? "no rerank"} /{" "}
                   {trialDetail.combo.genModel}
                 </Text>
-                <Text fw={600}>Question</Text>
+                <Text fw={600}>{COPY.corpus.questionLabel}</Text>
                 <Text size="sm">{trialDetail.question.text}</Text>
-                <Text fw={600}>Reference answer</Text>
+                <Text fw={600}>{COPY.corpus.expectedAnswerLabel}</Text>
                 <Text size="sm">{trialDetail.question.referenceAnswer}</Text>
                 {trialDetail.trial.overallScore && (
-                  <Badge>Quality score {Number(trialDetail.trial.overallScore).toFixed(1)}</Badge>
+                  <Badge>
+                    {COPY.results.columns.quality} {Number(trialDetail.trial.overallScore).toFixed(1)}
+                  </Badge>
                 )}
                 <TrialStagesPanel
                   stages={trialDetail.trial.stages}
@@ -282,15 +280,15 @@ export default function RunPage() {
             )}
           </Modal>
 
-          <Modal opened={cancelOpen} onClose={() => setCancelOpen(false)} title="Cancel this run?" centered>
+          <Modal opened={cancelOpen} onClose={() => setCancelOpen(false)} title={COPY.run.cancelTitle} centered>
             <Stack gap="md">
-              <Text size="sm">In-progress evaluations will stop. Spend so far is not refunded.</Text>
+              <Text size="sm">{COPY.run.cancelBody}</Text>
               <Group justify="flex-end">
                 <Button variant="default" onClick={() => setCancelOpen(false)}>
-                  Keep running
+                  {COPY.run.cancelKeep}
                 </Button>
                 <Button color="red" loading={canceling} onClick={handleCancel}>
-                  Cancel run
+                  {COPY.run.cancelConfirm}
                 </Button>
               </Group>
             </Stack>

@@ -1,5 +1,5 @@
 import { Alert, Button, Center, Loader, Stack, Text } from "@mantine/core";
-import { friendlyError } from "../lib/copy";
+import { COPY, friendlyError } from "../lib/copy";
 
 type Props = {
   isLoading: boolean;
@@ -25,7 +25,7 @@ export default function QueryState({
         <Stack align="center" gap="sm">
           <Loader size="md" />
           <Text c="dimmed" size="sm">
-            Loading…
+            {COPY.common.loading}
           </Text>
         </Stack>
       </Center>
@@ -34,19 +34,19 @@ export default function QueryState({
 
   if (notFound) {
     return (
-      <Alert color="gray" title="Not found">
-        This page does not exist or was removed.
+      <Alert color="gray" title={COPY.common.notFound}>
+        {COPY.common.notFoundBody}
       </Alert>
     );
   }
 
   if (isError) {
     return (
-      <Alert color="red" title="Could not load data">
+      <Alert color="red" title={COPY.common.loadFailed}>
         {friendlyError(error?.message ?? "Unknown error")}
         {onRetry && (
           <Button variant="light" size="compact-sm" mt="sm" onClick={onRetry}>
-            Try again
+            {COPY.common.tryAgain}
           </Button>
         )}
       </Alert>

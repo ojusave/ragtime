@@ -1,5 +1,6 @@
 import { Badge, Box, Stack, Text } from "@mantine/core";
 import type { TrialStages } from "@ragtime/core";
+import { COPY } from "../lib/copy";
 import { formatReceipt } from "../lib/receipt";
 
 type ChunkRow = { id: string; content: string; idx?: number };
@@ -13,13 +14,12 @@ type Props = {
 };
 
 function receiptLine(
-  label: string,
   r?: { latencyMs: number; costUsd: number; costUnknown?: boolean; provider?: string }
 ) {
   if (!r) return null;
   return (
     <Text size="xs" c="dimmed">
-      {label}: {formatReceipt(r)}
+      {COPY.stages.costLatency}: {formatReceipt(r)}
     </Text>
   );
 }
@@ -38,7 +38,8 @@ export default function TrialStagesPanel({
 
   const renderChunk = (id: string, score?: number, rank?: number) => {
     const chunk = chunks?.get(id);
-    const label = chunk?.idx != null ? `chunk:${chunk.idx}` : id.slice(0, 8);
+    const label =
+      chunk?.idx != null ? COPY.stages.passageLabel(chunk.idx) : id.slice(0, 8);
     const highlighted = highlightChunkId === id;
     return (
       <Box
@@ -66,9 +67,9 @@ export default function TrialStagesPanel({
       {retrieval && (
         <section>
           <Text fw={600} size="sm">
-            Retrieve ({retrieval.chunkIds.length} candidates)
+            {COPY.stages.findPassages(retrieval.chunkIds.length)}
           </Text>
-          {receiptLine("Cost & latency", retrieval)}
+          {receiptLine(retrieval)}
           {retrieval.chunkIds.map((id, i) => renderChunk(id, retrieval.scores[i], i + 1))}
         </section>
       )}
@@ -76,11 +77,11 @@ export default function TrialStagesPanel({
       {rerank && (
         <section>
           <Text fw={600} size="sm">
-            Rerank
+            {COPY.stages.rerank}
           </Text>
-          {receiptLine("Cost & latency", rerank)}
+          {receiptLine(rerank)}
           <Text size="xs" c="dimmed" mb="xs">
-            Kept {rerank.keptChunkIds.length} chunks
+            {COPY.stages.kept(rerank.keptChunkIds.length)}
           </Text>
           {rerank.keptChunkIds.map((id, i) => {
             const origIdx = retrieval?.chunkIds.indexOf(id) ?? -1;
@@ -102,15 +103,15 @@ export default function TrialStagesPanel({
       {generation && (
         <section>
           <Text fw={600} size="sm">
-            Generate
+            {COPY.stages.writeAnswer}
           </Text>
-          {receiptLine("Cost & latency", generation)}
+          {receiptLine(generation)}
           {answer && (
             <Text size="sm" mt="xs">
               {answer.split(/(\[chunk:\d+\])/g).map((part, i) =>
-                /^\[chunk:\d+\]$/.test(part) ? (
+                /^\[chunk:(\d+)\]$/.test(part) ? (
                   <Badge key={i} size="sm" variant="light" mr={4}>
-                    {part}
+                    {COPY.stages.passageLabel(Number(part.match(/\d+/)?.[0] ?? 0))}
                   </Badge>
                 ) : (
                   <span key={i}>{part}</span>
@@ -124,12 +125,11 @@ export default function TrialStagesPanel({
       {judge && (
         <section>
           <Text fw={600} size="sm">
-            Judge ({judge.judgeModel})
+            {COPY.stages.rateAnswer(judge.judgeModel.split("/").pop() ?? judge.judgeModel)}
           </Text>
-          {receiptLine("Cost & latency", judge)}
+          {receiptLine(judge)}
           <Text size="sm">
-            Faithfulness {judge.faithfulness} · Correctness {judge.correctness} · Completeness{" "}
-            {judge.completeness}
+            {COPY.stages.scores(judge.faithfulness, judge.correctness, judge.completeness)}
           </Text>
           <Text size="xs" c="dimmed">
             {judge.rationale}

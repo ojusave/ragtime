@@ -25,7 +25,7 @@ import PageHeader from "../components/PageHeader";
 import QueryState from "../components/QueryState";
 import RunHistoryList from "../components/RunHistoryList";
 import { api } from "../lib/api";
-import { DOC_STATUS_LABEL, formatMatrixSummary, friendlyError } from "../lib/copy";
+import { DOC_STATUS_LABEL, formatMatrixSummary, friendlyError, COPY, FLOW_STEPS, QUESTION_SOURCE_LABEL } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
 
 type Doc = { id: string; title: string; status: string; sourceType: string };
@@ -88,7 +88,7 @@ export default function CorpusPage() {
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["corpus", id] });
-      notifySuccess("Document uploaded");
+      notifySuccess(COPY.notify.docUploaded);
     },
     onError: (e) =>
       notifyError("Upload failed", e instanceof Error ? friendlyError(e.message) : undefined),
@@ -103,7 +103,7 @@ export default function CorpusPage() {
     onSuccess: () => {
       setUrl("");
       qc.invalidateQueries({ queryKey: ["corpus", id] });
-      notifySuccess("URL added");
+      notifySuccess(COPY.notify.urlAdded);
     },
     onError: (e) =>
       notifyError("Could not add URL", e instanceof Error ? friendlyError(e.message) : undefined),
@@ -119,7 +119,7 @@ export default function CorpusPage() {
       setQText("");
       setQAnswer("");
       qc.invalidateQueries({ queryKey: ["corpus", id] });
-      notifySuccess("Question added");
+      notifySuccess(COPY.notify.questionAdded);
     },
     onError: (e) =>
       notifyError("Could not add question", e instanceof Error ? friendlyError(e.message) : undefined),
@@ -146,7 +146,7 @@ export default function CorpusPage() {
     },
     onSuccess: (r) => {
       setConfirmOpen(false);
-      notifySuccess("Comparison run started");
+      notifySuccess(COPY.notify.comparisonStarted);
       nav(`/run/${r.runId}`);
     },
   });
@@ -197,27 +197,30 @@ export default function CorpusPage() {
         <Stack gap="xl">
           <PageHeader
             title={data.corpus.name}
-            description="Add documents and golden questions, then configure model stacks for a comparison run."
+            description={COPY.corpus.description}
             crumbs={[{ label: "Home", to: "/" }, { label: data.corpus.name }]}
             actions={
               <Button component={Link} to={`/corpus/${id}/inspect`} variant="light">
-                Pipeline inspector
+                {COPY.corpus.tryOneQuestion}
               </Button>
             }
           />
 
-          <FlowSteps active={1} steps={[
-            { label: "Dataset", description: `${readyDocs} docs · ${data.questions.length} questions` },
-            { label: "Configure" },
-            { label: "Run" },
-            { label: "Results" },
-          ]} />
+          <FlowSteps
+            active={1}
+            steps={[
+              { ...FLOW_STEPS[0], description: `${readyDocs} docs · ${data.questions.length} questions` },
+              FLOW_STEPS[1],
+              FLOW_STEPS[2],
+              FLOW_STEPS[3],
+            ]}
+          />
 
           {id && <RunHistoryList corpusId={id} />}
 
           <Card withBorder>
             <Text fw={600} mb="sm">
-              Documents
+              {COPY.corpus.documentsHeading}
             </Text>
             <Dropzone
               onDrop={(files) => files[0] && upload.mutate(files[0])}
@@ -226,7 +229,7 @@ export default function CorpusPage() {
               disabled={upload.isPending}
             >
               <Text ta="center">
-                {upload.isPending ? "Uploading…" : "Drop .txt or .md files to add to this corpus"}
+                {upload.isPending ? COPY.corpus.dropzoneLoading : COPY.corpus.dropzone}
               </Text>
             </Dropzone>
             <Group mb="md">
@@ -255,8 +258,8 @@ export default function CorpusPage() {
                     <Table.Tr>
                       <Table.Td colSpan={3}>
                         <EmptyState
-                          title="No documents yet"
-                          hint="Upload a .txt or .md file, or paste a URL above."
+                          title={COPY.corpus.emptyDocs}
+                          hint={COPY.corpus.emptyDocsHint}
                         />
                       </Table.Td>
                     </Table.Tr>
@@ -278,19 +281,19 @@ export default function CorpusPage() {
 
           <Card withBorder>
             <Text fw={600} mb="sm">
-              Evaluation questions ({data.questions.length})
+              {COPY.corpus.questionsHeading(data.questions.length)}
             </Text>
             <Stack gap="sm" mb="md">
               <Textarea
-                label="Question"
-                placeholder="What does the evidence say about…?"
+                label={COPY.corpus.questionLabel}
+                placeholder={COPY.corpus.questionPlaceholder}
                 value={qText}
                 onChange={(e) => setQText(e.currentTarget.value)}
                 minRows={2}
               />
               <Textarea
-                label="Reference answer (golden)"
-                placeholder="The expected answer for scoring"
+                label={COPY.corpus.expectedAnswerLabel}
+                placeholder={COPY.corpus.expectedAnswerPlaceholder}
                 value={qAnswer}
                 onChange={(e) => setQAnswer(e.currentTarget.value)}
                 minRows={2}
@@ -301,7 +304,7 @@ export default function CorpusPage() {
                 disabled={!qText.trim() || !qAnswer.trim()}
                 w="fit-content"
               >
-                Add question
+                {COPY.corpus.addQuestion}
               </Button>
             </Stack>
             <ScrollArea>
@@ -317,8 +320,8 @@ export default function CorpusPage() {
                     <Table.Tr>
                       <Table.Td colSpan={2}>
                         <EmptyState
-                          title="No evaluation questions"
-                          hint="Add golden Q&A pairs above, or seed the SciFact demo corpus."
+                          title={COPY.corpus.emptyQuestions}
+                          hint={COPY.corpus.emptyQuestionsHint}
                         />
                       </Table.Td>
                     </Table.Tr>
@@ -326,7 +329,7 @@ export default function CorpusPage() {
                     data.questions.map((q) => (
                       <Table.Tr key={q.id}>
                         <Table.Td>{q.text}</Table.Td>
-                        <Table.Td>{q.origin === "manual" ? "Golden" : q.origin}</Table.Td>
+                        <Table.Td>{QUESTION_SOURCE_LABEL[q.origin] ?? q.origin}</Table.Td>
                       </Table.Tr>
                     ))
                   )}
@@ -337,43 +340,43 @@ export default function CorpusPage() {
 
           <Card withBorder>
             <Group justify="space-between" mb="sm">
-              <Text fw={600}>Configure comparison run</Text>
+              <Text fw={600}>{COPY.corpus.configureHeading}</Text>
               <Button variant="light" size="compact-sm" onClick={applySuggestedMatrix}>
-                Use suggested 2×2 smoke matrix
+                {COPY.corpus.suggestedPreset}
               </Button>
             </Group>
             <Stack gap="sm">
               <TextInput
-                label="Run name"
-                description="Shown on the live run and results pages."
+                label={COPY.corpus.runNameLabel}
+                description={COPY.corpus.runNameDescription}
                 placeholder={`${data.corpus.name} comparison`}
                 value={runName}
                 onChange={(e) => setRunName(e.currentTarget.value)}
               />
               <MultiSelect
-                label="Embedding models"
-                description="Turn text into vectors for retrieval."
+                label={COPY.corpus.embedLabel}
+                description={COPY.corpus.embedDescription}
                 searchable
                 data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
                 value={embModels}
                 onChange={setEmbModels}
               />
               <Checkbox
-                label="Include a baseline without reranking"
+                label={COPY.corpus.noRerankLabel}
                 checked={noRerank}
                 onChange={(e) => setNoRerank(e.currentTarget.checked)}
               />
               <MultiSelect
-                label="Rerank models"
-                description="Optional second pass to reorder retrieved chunks."
+                label={COPY.corpus.rerankLabel}
+                description={COPY.corpus.rerankDescription}
                 searchable
                 data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
                 value={rerModels}
                 onChange={setRerModels}
               />
               <MultiSelect
-                label="Generation models"
-                description="Chat models that produce answers from retrieved context."
+                label={COPY.corpus.genLabel}
+                description={COPY.corpus.genDescription}
                 searchable
                 data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
                 value={genModels}
@@ -381,19 +384,19 @@ export default function CorpusPage() {
               />
               <Group grow wrap="wrap">
                 <NumberInput
-                  label="Chunks to retrieve (top-K)"
+                  label={COPY.corpus.retrieveLabel}
                   value={retrieveK}
                   onChange={(v) => setRetrieveK(Number(v))}
                   min={1}
                 />
                 <NumberInput
-                  label="Chunks after rerank"
+                  label={COPY.corpus.finalKLabel}
                   value={finalK}
                   onChange={(v) => setFinalK(Number(v))}
                   min={1}
                 />
                 <NumberInput
-                  label="Min. rerank score (optional)"
+                  label={COPY.corpus.thresholdLabel}
                   value={threshold}
                   onChange={setThreshold}
                   min={0}
@@ -402,7 +405,7 @@ export default function CorpusPage() {
                   decimalScale={2}
                 />
                 <NumberInput
-                  label="Max spend for this run (USD)"
+                  label={COPY.corpus.budgetLabel}
                   value={budget}
                   onChange={setBudget}
                   min={0.1}
@@ -413,18 +416,17 @@ export default function CorpusPage() {
                 {matrix.line}
               </Text>
               {!data.questions.length && (
-                <Alert color="yellow" title="Add questions before launching">
-                  A comparison run needs at least one evaluation question with a reference answer.
+                <Alert color="yellow" title={COPY.corpus.needQuestionsTitle}>
+                  {COPY.corpus.needQuestions}
                 </Alert>
               )}
               {matrix.overLimit && (
-                <Alert color="red" title="Too many evaluations">
-                  Reduce embedding, rerank, or generation models. Large matrices can overload the
-                  database on starter plans.
+                <Alert color="red" title={COPY.corpus.tooManyTests}>
+                  {COPY.corpus.tooManyTestsBody}
                 </Alert>
               )}
               {launch.isError && (
-                <Alert color="red" title="Could not start run">
+                <Alert color="red" title="Could not start comparison">
                   {launch.error instanceof Error
                     ? friendlyError(launch.error.message)
                     : "Something went wrong."}
@@ -436,7 +438,7 @@ export default function CorpusPage() {
                   loading={launch.isPending}
                   disabled={!canLaunch}
                 >
-                  Start comparison run
+                  {COPY.corpus.startButton}
                 </Button>
               </Group>
             </Stack>
@@ -445,21 +447,20 @@ export default function CorpusPage() {
           <Modal
             opened={confirmOpen}
             onClose={() => setConfirmOpen(false)}
-            title="Start comparison run?"
+            title={COPY.corpus.confirmTitle}
             centered
           >
             <Stack gap="md">
               <Text size="sm">{matrix.line}</Text>
               <Text size="sm" c="dimmed">
-                OpenRouter charges apply. The run executes on Render Workflows and may take several
-                minutes.
+                {COPY.corpus.confirmNote}
               </Text>
               <Group justify="flex-end">
                 <Button variant="default" onClick={() => setConfirmOpen(false)}>
-                  Cancel
+                  {COPY.common.cancel}
                 </Button>
                 <Button onClick={() => launch.mutate()} loading={launch.isPending}>
-                  Confirm and start
+                  {COPY.common.confirm}
                 </Button>
               </Group>
             </Stack>

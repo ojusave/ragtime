@@ -2,7 +2,7 @@ import { Badge, Button, Card, Group, Stack, Table, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { api } from "../lib/api";
-import { runStatusLabel } from "../lib/copy";
+import { COPY, runStatusLabel } from "../lib/copy";
 import EmptyState from "./EmptyState";
 
 type RunRow = {
@@ -15,35 +15,30 @@ type RunRow = {
   finishedAt: string | null;
 };
 
-/** Recent comparison runs for a corpus. */
+/** Recent comparisons for a dataset. */
 export default function RunHistoryList({ corpusId }: { corpusId: string }) {
   const { data: runs = [], isLoading } = useQuery({
     queryKey: ["corpus-runs", corpusId],
     queryFn: () => api<RunRow[]>(`/api/corpora/${corpusId}/runs`),
   });
 
-  if (isLoading) return <Text size="sm" c="dimmed">Loading run history…</Text>;
+  if (isLoading) return <Text size="sm" c="dimmed">{COPY.common.loading}</Text>;
   if (runs.length === 0) {
-    return (
-      <EmptyState
-        title="No comparison runs yet"
-        hint="Configure models below and start your first run."
-      />
-    );
+    return <EmptyState title={COPY.history.empty} hint={COPY.history.emptyHint} />;
   }
 
   return (
     <Card withBorder>
       <Text fw={600} mb="sm">
-        Recent runs
+        {COPY.corpus.recentRuns}
       </Text>
       <Table striped highlightOnHover>
         <Table.Thead>
           <Table.Tr>
             <Table.Th>Name</Table.Th>
             <Table.Th>Status</Table.Th>
-            <Table.Th>Spend</Table.Th>
-            <Table.Th>Started</Table.Th>
+            <Table.Th>{COPY.history.spend}</Table.Th>
+            <Table.Th>{COPY.history.started}</Table.Th>
             <Table.Th />
           </Table.Tr>
         </Table.Thead>
@@ -70,7 +65,7 @@ export default function RunHistoryList({ corpusId }: { corpusId: string }) {
                     variant="subtle"
                     size="compact-xs"
                   >
-                    Open
+                    {COPY.history.open}
                   </Button>
                   {(r.status === "complete" || r.status === "budget_exceeded") && (
                     <Button
@@ -79,7 +74,7 @@ export default function RunHistoryList({ corpusId }: { corpusId: string }) {
                       variant="light"
                       size="compact-xs"
                     >
-                      Results
+                      {COPY.history.results}
                     </Button>
                   )}
                 </Group>

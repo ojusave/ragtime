@@ -1,4 +1,6 @@
-/** Human-readable activity feed lines (no raw event-type badges in prose). */
+/** Human-readable activity feed lines. */
+
+import { stageLabel } from "./copy.js";
 
 type EventRow = {
   type: string;
@@ -10,39 +12,39 @@ export function formatActivityLine(e: EventRow): string {
   switch (e.type) {
     case "embed.batch": {
       const r = p.receipt as { costUsd?: number; costUnknown?: boolean } | undefined;
-      const cost = r?.costUnknown ? "cost n/a" : `$${Number(r?.costUsd ?? 0).toFixed(4)}`;
+      const cost = r?.costUnknown ? "cost unknown" : `$${Number(r?.costUsd ?? 0).toFixed(4)}`;
       const model = String(p.model ?? "").split("/").pop() ?? "model";
-      return `Embedded ${p.embedded} chunks with ${model} (${cost})`;
+      return `Indexed ${p.embedded} passages with ${model} (${cost})`;
     }
     case "trial.stage":
-      return `Finished ${p.stage} for an evaluation`;
+      return `Finished: ${stageLabel(String(p.stage ?? ""))}`;
     case "trial.retry":
-      return `Retrying evaluation (attempt ${p.attempt})`;
+      return `Retrying test (attempt ${p.attempt})`;
     case "trial.failed":
-      return `Evaluation failed: ${p.message ?? "see logs"}`;
+      return `Test failed: ${p.message ?? "see logs"}`;
     case "embed.failed":
-      return `Embedding batch failed: ${p.message ?? "see logs"}`;
+      return `Indexing failed: ${p.message ?? "see logs"}`;
     case "chaos.injected":
-      return "Simulated failure (chaos mode): retrying";
+      return "Simulated error — retrying";
     case "budget.tripped":
-      return "Run stopped: budget limit reached";
+      return "Stopped — budget limit reached";
     case "run.status":
-      return `Run update: ${humanRunStatus(String(p.status ?? ""))}`;
+      return `Status: ${humanRunStatus(String(p.status ?? ""))}`;
     case "doc.ingested":
-      return `Indexed document (${p.chunkCount} chunks)`;
+      return `Document indexed (${p.chunkCount} passages)`;
     default:
-      return "System update";
+      return "Update";
   }
 }
 
 function humanRunStatus(status: string): string {
   const map: Record<string, string> = {
     ingesting: "preparing documents",
-    running: "evaluations in progress",
-    aggregating: "summarizing results",
+    running: "tests running",
+    aggregating: "adding up results",
     complete: "complete",
     failed: "failed",
-    budget_exceeded: "budget limit reached",
+    budget_exceeded: "budget reached",
   };
   return map[status] ?? status.replace(/_/g, " ");
 }

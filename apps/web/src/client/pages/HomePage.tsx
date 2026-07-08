@@ -9,24 +9,17 @@ import {
   Alert,
   Anchor,
 } from "@mantine/core";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import FlowSteps from "../components/FlowSteps";
 import QueryState from "../components/QueryState";
 import { api } from "../lib/api";
-import { friendlyError } from "../lib/copy";
+import { COPY, FLOW_STEPS, friendlyError } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
 import { renderSignupUrlWithUtms, GITHUB_REPO_URL, DEPLOY_TO_RENDER_URL } from "../lib/render-links";
 
 type Corpus = { id: string; name: string; description: string | null };
-
-const FLOW_STEPS = [
-  { label: "Dataset", description: "Documents + questions" },
-  { label: "Configure", description: "Model stacks" },
-  { label: "Run", description: "Live evaluations" },
-  { label: "Results", description: "Leaderboard" },
-];
 
 export default function HomePage() {
   const qc = useQueryClient();
@@ -46,11 +39,14 @@ export default function HomePage() {
       }),
     onSuccess: (c) => {
       qc.invalidateQueries({ queryKey: ["corpora"] });
-      notifySuccess("Corpus created", c.name);
+      notifySuccess(COPY.notify.datasetCreated, c.name);
       nav(`/corpus/${c.id}`);
     },
     onError: (e) => {
-      notifyError("Could not create corpus", e instanceof Error ? friendlyError(e.message) : undefined);
+      notifyError(
+        "Could not create dataset",
+        e instanceof Error ? friendlyError(e.message) : undefined
+      );
     },
   });
 
@@ -64,13 +60,10 @@ export default function HomePage() {
     <Stack gap="lg">
       <Card withBorder p="lg">
         <Stack gap="sm">
-          <Title order={2}>Compare RAG model stacks</Title>
-          <Text c="dimmed">
-            Run the same questions across embedding, rerank, and chat models. See quality, cost,
-            and latency in one leaderboard.
-          </Text>
+          <Title order={2}>{COPY.home.title}</Title>
+          <Text c="dimmed">{COPY.home.subtitle}</Text>
           <Text size="sm" c="dimmed">
-            Runs on Render · Models via OpenRouter
+            {COPY.home.platformNote}
           </Text>
           <Group>
             <Button component="a" href={DEPLOY_TO_RENDER_URL} target="_blank" rel="noreferrer">
@@ -89,16 +82,11 @@ export default function HomePage() {
         </Stack>
       </Card>
 
-      <FlowSteps active={0} steps={FLOW_STEPS} />
+      <FlowSteps active={0} steps={[...FLOW_STEPS]} />
 
-      <Title order={3}>Your datasets</Title>
+      <Title order={3}>{COPY.home.datasetsHeading}</Title>
       <QueryState isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
-        {!corpora.length && (
-          <Alert title="No datasets yet">
-            Create a corpus below, or run <CodeInline>pnpm seed</CodeInline> after deploy to load the
-            SciFact demo.
-          </Alert>
-        )}
+        {!corpora.length && <Alert title="No datasets yet">{COPY.home.emptyDatasets}</Alert>}
         <Stack>
           {corpora.map((c) => (
             <Card
@@ -121,9 +109,9 @@ export default function HomePage() {
 
       <Group align="flex-end">
         <TextInput
-          label="Name your document set"
-          description="A corpus holds documents and evaluation questions for one comparison run."
-          placeholder="e.g. Product docs Q1"
+          label={COPY.home.createLabel}
+          description={COPY.home.createDescription}
+          placeholder={COPY.home.createPlaceholder}
           value={name}
           onChange={(e) => setName(e.currentTarget.value)}
           onKeyDown={(e) => e.key === "Enter" && handleCreate()}
@@ -131,7 +119,7 @@ export default function HomePage() {
           disabled={create.isPending}
         />
         <Button onClick={handleCreate} loading={create.isPending} disabled={!name.trim()}>
-          Create corpus
+          {COPY.home.createButton}
         </Button>
       </Group>
 
@@ -141,13 +129,5 @@ export default function HomePage() {
         </Anchor>
       </Text>
     </Stack>
-  );
-}
-
-function CodeInline({ children }: { children: ReactNode }) {
-  return (
-    <Text span ff="monospace" size="sm">
-      {children}
-    </Text>
   );
 }

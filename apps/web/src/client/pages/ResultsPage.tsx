@@ -7,7 +7,7 @@ import FlowSteps from "../components/FlowSteps";
 import PageHeader from "../components/PageHeader";
 import QueryState from "../components/QueryState";
 import { api } from "../lib/api";
-import { runStatusLabel } from "../lib/copy";
+import { COPY, FLOW_STEPS, runStatusLabel } from "../lib/copy";
 import { downloadResultsCsv } from "../lib/export-results";
 import type { ComboResult } from "@ragtime/core";
 
@@ -52,13 +52,13 @@ export default function ResultsPage() {
       {data && (
         <Stack gap="lg">
           <PageHeader
-            title={`${data.run.name}: results`}
-            description="Compare model stacks by quality, cost, and latency."
+            title={`${data.run.name}: ${COPY.results.titleSuffix}`}
+            description={COPY.results.description}
             crumbs={[
               { label: "Home", to: "/" },
-              { label: "Corpus", to: `/corpus/${data.run.corpusId}` },
-              { label: "Run", to: `/run/${id}` },
-              { label: "Results" },
+              { label: "Dataset", to: `/corpus/${data.run.corpusId}` },
+              { label: "Compare", to: `/run/${id}` },
+              { label: "Review" },
             ]}
             actions={
               <Group gap="sm">
@@ -68,55 +68,49 @@ export default function ResultsPage() {
                   onClick={() => downloadResultsCsv(data.run.name, sorted)}
                   disabled={sorted.length === 0}
                 >
-                  Export CSV
+                  {COPY.results.exportCsv}
                 </Button>
                 <Button component={Link} to={`/run/${id}`} variant="outline">
-                  Back to run
+                  {COPY.results.backToRun}
                 </Button>
                 <Button component={Link} to={`/corpus/${data.run.corpusId}`}>
-                  Back to corpus
+                  {COPY.results.backToDataset}
                 </Button>
               </Group>
             }
           />
 
-          <FlowSteps active={3} steps={[
-            { label: "Dataset" },
-            { label: "Configure" },
-            { label: "Run" },
-            { label: "Results" },
-          ]} />
+          <FlowSteps active={3} steps={[...FLOW_STEPS]} />
 
           {data.run.status === "failed" && (
-            <Alert color="red" title="Run did not complete">
-              Partial results may be missing. Open the run page for details.
+            <Alert color="red" title={COPY.results.failedTitle}>
+              {COPY.results.failedBody}
             </Alert>
           )}
 
           <Text>
-            Total spend: ${Number(data.run.totalCostUsd).toFixed(2)} / $
-            {Number(data.run.budgetUsd).toFixed(2)}
+            {COPY.run.spend(
+              Number(data.run.totalCostUsd).toFixed(2),
+              Number(data.run.budgetUsd).toFixed(2)
+            )}
           </Text>
 
           <Card withBorder>
             <Text fw={600} mb="md">
-              Model stack leaderboard
+              {COPY.results.leaderboard}
             </Text>
             {sorted.length === 0 ? (
-              <EmptyState
-                title="No results yet"
-                hint="Evaluations may still be running. Check back on the run page."
-              />
+              <EmptyState title={COPY.results.empty} hint={COPY.results.emptyHint} />
             ) : (
               <Table striped highlightOnHover>
                 <Table.Thead>
                   <Table.Tr>
-                    <Table.Th>Model stack</Table.Th>
-                    <Table.Th>Quality</Table.Th>
-                    <Table.Th>Cost / question</Table.Th>
-                    <Table.Th>P50 latency</Table.Th>
-                    <Table.Th>P95 latency</Table.Th>
-                    <Table.Th>Failures</Table.Th>
+                    <Table.Th>{COPY.results.columns.setup}</Table.Th>
+                    <Table.Th>{COPY.results.columns.quality}</Table.Th>
+                    <Table.Th>{COPY.results.columns.cost}</Table.Th>
+                    <Table.Th>{COPY.results.columns.p50}</Table.Th>
+                    <Table.Th>{COPY.results.columns.p95}</Table.Th>
+                    <Table.Th>{COPY.results.columns.failures}</Table.Th>
                   </Table.Tr>
                 </Table.Thead>
                 <Table.Tbody>
@@ -125,9 +119,9 @@ export default function ResultsPage() {
                       <Table.Td>
                         {c.label}
                         {c.selfJudged && (
-                          <Tooltip label="The same model judged its own answer. Scores may be optimistic.">
+                          <Tooltip label={COPY.results.selfJudgedTooltip}>
                             <Badge size="xs" ml={4}>
-                              self-judged
+                              {COPY.results.selfJudgedBadge}
                             </Badge>
                           </Tooltip>
                         )}
@@ -147,7 +141,7 @@ export default function ResultsPage() {
           {chartData.length > 0 && (
             <Card withBorder>
               <Text fw={600} mb="md">
-                Cost vs quality
+                {COPY.results.chartTitle}
               </Text>
               <ScatterChart
                 h={360}

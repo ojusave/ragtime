@@ -1,6 +1,6 @@
 import { Box, Group, Text, Tooltip } from "@mantine/core";
 import { Fragment, memo, useMemo } from "react";
-import { TRIAL_STATUS_LABEL } from "../lib/copy";
+import { COPY, TEST_STATUS_LABEL } from "../lib/copy";
 
 type Cell = {
   trialId: string;
@@ -44,7 +44,7 @@ const GridCell = memo(function GridCell({
   onCellClick?: (trialId: string) => void;
 }) {
   const label = cell
-    ? `${TRIAL_STATUS_LABEL[cell.status] ?? cell.status}${cell.overallScore ? ` · score ${Number(cell.overallScore).toFixed(1)}` : ""}${cell.attempts > 1 ? ` · ${cell.attempts} attempts` : ""}`
+    ? `${TEST_STATUS_LABEL[cell.status] ?? cell.status}${cell.overallScore ? ` · ${COPY.results.columns.quality.toLowerCase()} ${Number(cell.overallScore).toFixed(1)}` : ""}${cell.attempts > 1 ? ` · ${cell.attempts} tries` : ""}`
     : "";
 
   return (
@@ -96,25 +96,25 @@ export default function TrialGrid({ combos, questions, grid, onCellClick }: Prop
         <Group gap={6}>
           <Box w={14} h={14} style={{ background: "var(--mantine-color-gray-2)", borderRadius: 2 }} />
           <Text size="xs" c="dimmed">
-            Pending
+            {COPY.grid.legendPending}
           </Text>
         </Group>
         <Group gap={6}>
           <Box w={14} h={14} style={{ background: "var(--mantine-color-blue-2)", borderRadius: 2 }} />
           <Text size="xs" c="dimmed">
-            Running
+            {COPY.grid.legendRunning}
           </Text>
         </Group>
         <Group gap={6}>
           <Box w={14} h={14} style={{ background: "rgba(34,139,230,0.7)", borderRadius: 2 }} />
           <Text size="xs" c="dimmed">
-            High score
+            {COPY.grid.legendHigh}
           </Text>
         </Group>
         <Group gap={6}>
           <Box w={14} h={14} style={{ background: "var(--mantine-color-red-3)", borderRadius: 2 }} />
           <Text size="xs" c="dimmed">
-            Failed
+            {COPY.grid.legendFailed}
           </Text>
         </Group>
       </Group>

@@ -20,7 +20,7 @@ import { Link, useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import TrialStagesPanel from "../components/TrialStagesPanel";
 import { api } from "../lib/api";
-import { friendlyError } from "../lib/copy";
+import { COPY, PIPELINE_STAGE_LABEL, friendlyError } from "../lib/copy";
 import { formatReceipt } from "../lib/receipt";
 import type { TrialStages } from "@ragtime/core";
 
@@ -36,13 +36,7 @@ type StageState = {
   receipt?: { latencyMs: number; costUsd: number; costUnknown?: boolean; provider?: string };
 };
 
-const STAGE_LABEL: Record<string, string> = {
-  embed: "Embed query",
-  retrieve: "Retrieve chunks",
-  rerank: "Rerank",
-  generate: "Generate answer",
-  judge: "Judge quality",
-};
+const STAGE_LABEL = PIPELINE_STAGE_LABEL;
 
 export default function InspectPage() {
   const { id: corpusId } = useParams<{ id: string }>();
@@ -155,16 +149,16 @@ export default function InspectPage() {
   return (
     <Stack gap="md">
       <PageHeader
-        title="Query inspector"
-        description="Test one question through the full RAG pipeline before launching a comparison run."
+        title={COPY.inspect.title}
+        description={COPY.inspect.description}
         crumbs={[
           { label: "Home", to: "/" },
-          { label: "Corpus", to: `/corpus/${corpusId}` },
-          { label: "Inspector" },
+          { label: "Dataset", to: `/corpus/${corpusId}` },
+          { label: COPY.inspect.title },
         ]}
         actions={
           <Button component={Link} to={`/corpus/${corpusId}`} variant="subtle">
-            Back to corpus
+            {COPY.results.backToDataset}
           </Button>
         }
       />
@@ -172,15 +166,15 @@ export default function InspectPage() {
       <Card withBorder>
         <Stack gap="sm">
           <TextInput
-            label="Question"
-            placeholder="What does the document say about…?"
+            label={COPY.corpus.questionLabel}
+            placeholder={COPY.corpus.questionPlaceholder}
             value={query}
             onChange={(e) => setQuery(e.currentTarget.value)}
           />
           <Grid>
             <Grid.Col span={4}>
               <Select
-                label="Embedding model"
+                label={COPY.corpus.embedLabel}
                 searchable
                 data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
                 value={emb}
@@ -189,7 +183,7 @@ export default function InspectPage() {
             </Grid.Col>
             <Grid.Col span={4}>
               <Select
-                label="Generation model"
+                label={COPY.corpus.genLabel}
                 searchable
                 data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
                 value={gen}
@@ -199,14 +193,14 @@ export default function InspectPage() {
             <Grid.Col span={4}>
               <Checkbox
                 mt={28}
-                label="Use reranking"
+                label={COPY.inspect.useRerankLabel}
                 checked={useRerank}
                 onChange={(e) => setUseRerank(e.currentTarget.checked)}
               />
               {useRerank && (
                 <Select
                   mt="xs"
-                  label="Rerank model"
+                  label={COPY.corpus.rerankLabel}
                   searchable
                   data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
                   value={rer}
@@ -217,21 +211,21 @@ export default function InspectPage() {
           </Grid>
           <Group grow>
             <NumberInput
-              label="Chunks to retrieve"
+              label={COPY.corpus.retrieveLabel}
               value={retrieveK}
               onChange={(v) => setRetrieveK(Number(v))}
             />
             <NumberInput
-              label="Chunks after rerank"
+              label={COPY.corpus.finalKLabel}
               value={finalK}
               onChange={(v) => setFinalK(Number(v))}
             />
           </Group>
           <Button onClick={runInspect} loading={running} disabled={!query || !emb || !gen}>
-            Run pipeline
+            {COPY.inspect.runButton}
           </Button>
           {pipelineError && (
-            <Alert color="red" title="Pipeline failed">
+            <Alert color="red" title={COPY.inspect.failedTitle}>
               {friendlyError(pipelineError)}
             </Alert>
           )}
@@ -301,8 +295,10 @@ export default function InspectPage() {
         <ScrollArea h={420}>
           {selectedStage === "embed" && stageMap.get("embed") && (
             <Stack gap="xs">
-              <Text fw={600}>Query embedding</Text>
-              <Text size="sm">Dimensions: {(stageMap.get("embed")?.data as { dims?: number })?.dims}</Text>
+              <Text fw={600}>{COPY.inspect.queryEmbedding}</Text>
+              <Text size="sm">
+                {COPY.inspect.dimensions((stageMap.get("embed")?.data as { dims?: number })?.dims ?? 0)}
+              </Text>
             </Stack>
           )}
           {(selectedStage === "retrieve" ||
@@ -324,7 +320,7 @@ export default function InspectPage() {
             />
           )}
           {!selectedStage && (
-            <Text c="dimmed">Enter a question and run the pipeline to inspect each stage.</Text>
+            <Text c="dimmed">{COPY.inspect.emptyHint}</Text>
           )}
         </ScrollArea>
       </Card>

@@ -71,7 +71,7 @@ export default function ActivityFeed({
         ))}
         {lines.length === 0 && (
           <Text size="sm" c="dimmed">
-            Waiting for activity…
+            Waiting for updates…
           </Text>
         )}
       </Stack>
