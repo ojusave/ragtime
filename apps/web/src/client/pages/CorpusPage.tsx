@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Checkbox,
+  Collapse,
   Group,
   Modal,
   MultiSelect,
@@ -11,21 +12,22 @@ import {
   ScrollArea,
   Stack,
   Table,
+  Tabs,
   Text,
   Textarea,
   TextInput,
 } from "@mantine/core";
 import { Dropzone } from "@mantine/dropzone";
+import { useDisclosure } from "@mantine/hooks";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
-import FlowSteps from "../components/FlowSteps";
 import PageHeader from "../components/PageHeader";
 import QueryState from "../components/QueryState";
 import RunHistoryList from "../components/RunHistoryList";
 import { api } from "../lib/api";
-import { DOC_STATUS_LABEL, formatMatrixSummary, friendlyError, COPY, FLOW_STEPS, QUESTION_SOURCE_LABEL } from "../lib/copy";
+import { DOC_STATUS_LABEL, formatMatrixSummary, friendlyError, COPY, QUESTION_SOURCE_LABEL } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
 
 type Doc = { id: string; title: string; status: string; sourceType: string };
@@ -56,6 +58,7 @@ export default function CorpusPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [qText, setQText] = useState("");
   const [qAnswer, setQAnswer] = useState("");
+  const [historyOpen, { toggle: toggleHistory }] = useDisclosure(false);
 
   const { data: appConfig } = useQuery({
     queryKey: ["config"],
@@ -194,10 +197,10 @@ export default function CorpusPage() {
       notFound={!isLoading && !isError && !data}
     >
       {data && (
-        <Stack gap="xl">
+        <Stack gap="md">
           <PageHeader
             title={data.corpus.name}
-            description={COPY.corpus.description}
+            description={`${readyDocs} documents · ${data.questions.length} test questions`}
             crumbs={[{ label: "Home", to: "/" }, { label: data.corpus.name }]}
             actions={
               <Button component={Link} to={`/corpus/${id}/inspect`} variant="light">
@@ -206,243 +209,243 @@ export default function CorpusPage() {
             }
           />
 
-          <FlowSteps
-            active={1}
-            steps={[
-              { ...FLOW_STEPS[0], description: `${readyDocs} docs · ${data.questions.length} questions` },
-              FLOW_STEPS[1],
-              FLOW_STEPS[2],
-              FLOW_STEPS[3],
-            ]}
-          />
+          <Tabs defaultValue="documents">
+            <Tabs.List>
+              <Tabs.Tab value="documents">{COPY.corpus.documentsHeading}</Tabs.Tab>
+              <Tabs.Tab value="questions">
+                {COPY.corpus.questionsHeading(data.questions.length)}
+              </Tabs.Tab>
+              <Tabs.Tab value="compare">{COPY.corpus.configureHeading}</Tabs.Tab>
+            </Tabs.List>
 
-          {id && <RunHistoryList corpusId={id} />}
-
-          <Card withBorder>
-            <Text fw={600} mb="sm">
-              {COPY.corpus.documentsHeading}
-            </Text>
-            <Dropzone
-              onDrop={(files) => files[0] && upload.mutate(files[0])}
-              accept={["text/plain", "text/markdown"]}
-              mb="md"
-              disabled={upload.isPending}
-            >
-              <Text ta="center">
-                {upload.isPending ? COPY.corpus.dropzoneLoading : COPY.corpus.dropzone}
-              </Text>
-            </Dropzone>
-            <Group mb="md">
-              <TextInput
-                placeholder="https://…"
-                value={url}
-                onChange={(e) => setUrl(e.currentTarget.value)}
-                style={{ flex: 1 }}
-                aria-label="Document URL"
-              />
-              <Button onClick={() => addUrl.mutate()} disabled={!url} loading={addUrl.isPending}>
-                Add URL
-              </Button>
-            </Group>
-            <ScrollArea>
-              <Table>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Title</Table.Th>
-                    <Table.Th>Type</Table.Th>
-                    <Table.Th>Status</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {data.documents.length === 0 ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={3}>
-                        <EmptyState
-                          title={COPY.corpus.emptyDocs}
-                          hint={COPY.corpus.emptyDocsHint}
-                        />
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : (
-                    data.documents.map((d) => (
-                      <Table.Tr key={d.id}>
-                        <Table.Td>{d.title}</Table.Td>
-                        <Table.Td>{d.sourceType}</Table.Td>
-                        <Table.Td>
-                          <Badge>{DOC_STATUS_LABEL[d.status] ?? d.status}</Badge>
-                        </Table.Td>
+            <Tabs.Panel value="documents" pt="md">
+              <Stack gap="md">
+                <Dropzone
+                  onDrop={(files) => files[0] && upload.mutate(files[0])}
+                  accept={["text/plain", "text/markdown"]}
+                  disabled={upload.isPending}
+                >
+                  <Text ta="center">
+                    {upload.isPending ? COPY.corpus.dropzoneLoading : COPY.corpus.dropzone}
+                  </Text>
+                </Dropzone>
+                <Group>
+                  <TextInput
+                    placeholder="https://…"
+                    value={url}
+                    onChange={(e) => setUrl(e.currentTarget.value)}
+                    style={{ flex: 1 }}
+                    aria-label="Document URL"
+                  />
+                  <Button onClick={() => addUrl.mutate()} disabled={!url} loading={addUrl.isPending}>
+                    Add URL
+                  </Button>
+                </Group>
+                <ScrollArea>
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Title</Table.Th>
+                        <Table.Th>Type</Table.Th>
+                        <Table.Th>Status</Table.Th>
                       </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
-            </ScrollArea>
-          </Card>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {data.documents.length === 0 ? (
+                        <Table.Tr>
+                          <Table.Td colSpan={3}>
+                            <EmptyState title={COPY.corpus.emptyDocs} hint={COPY.corpus.emptyDocsHint} />
+                          </Table.Td>
+                        </Table.Tr>
+                      ) : (
+                        data.documents.map((d) => (
+                          <Table.Tr key={d.id}>
+                            <Table.Td>{d.title}</Table.Td>
+                            <Table.Td>{d.sourceType}</Table.Td>
+                            <Table.Td>
+                              <Badge>{DOC_STATUS_LABEL[d.status] ?? d.status}</Badge>
+                            </Table.Td>
+                          </Table.Tr>
+                        ))
+                      )}
+                    </Table.Tbody>
+                  </Table>
+                </ScrollArea>
+              </Stack>
+            </Tabs.Panel>
 
-          <Card withBorder>
-            <Text fw={600} mb="sm">
-              {COPY.corpus.questionsHeading(data.questions.length)}
-            </Text>
-            <Stack gap="sm" mb="md">
-              <Textarea
-                label={COPY.corpus.questionLabel}
-                placeholder={COPY.corpus.questionPlaceholder}
-                value={qText}
-                onChange={(e) => setQText(e.currentTarget.value)}
-                minRows={2}
-              />
-              <Textarea
-                label={COPY.corpus.expectedAnswerLabel}
-                placeholder={COPY.corpus.expectedAnswerPlaceholder}
-                value={qAnswer}
-                onChange={(e) => setQAnswer(e.currentTarget.value)}
-                minRows={2}
-              />
-              <Button
-                onClick={() => addQuestion.mutate()}
-                loading={addQuestion.isPending}
-                disabled={!qText.trim() || !qAnswer.trim()}
-                w="fit-content"
-              >
-                {COPY.corpus.addQuestion}
-              </Button>
-            </Stack>
-            <ScrollArea>
-              <Table>
-                <Table.Thead>
-                  <Table.Tr>
-                    <Table.Th>Question</Table.Th>
-                    <Table.Th>Source</Table.Th>
-                  </Table.Tr>
-                </Table.Thead>
-                <Table.Tbody>
-                  {data.questions.length === 0 ? (
-                    <Table.Tr>
-                      <Table.Td colSpan={2}>
-                        <EmptyState
-                          title={COPY.corpus.emptyQuestions}
-                          hint={COPY.corpus.emptyQuestionsHint}
-                        />
-                      </Table.Td>
-                    </Table.Tr>
-                  ) : (
-                    data.questions.map((q) => (
-                      <Table.Tr key={q.id}>
-                        <Table.Td>{q.text}</Table.Td>
-                        <Table.Td>{QUESTION_SOURCE_LABEL[q.origin] ?? q.origin}</Table.Td>
+            <Tabs.Panel value="questions" pt="md">
+              <Stack gap="md">
+                <Stack gap="sm">
+                  <Textarea
+                    label={COPY.corpus.questionLabel}
+                    placeholder={COPY.corpus.questionPlaceholder}
+                    value={qText}
+                    onChange={(e) => setQText(e.currentTarget.value)}
+                    minRows={2}
+                  />
+                  <Textarea
+                    label={COPY.corpus.expectedAnswerLabel}
+                    placeholder={COPY.corpus.expectedAnswerPlaceholder}
+                    value={qAnswer}
+                    onChange={(e) => setQAnswer(e.currentTarget.value)}
+                    minRows={2}
+                  />
+                  <Button
+                    onClick={() => addQuestion.mutate()}
+                    loading={addQuestion.isPending}
+                    disabled={!qText.trim() || !qAnswer.trim()}
+                    w="fit-content"
+                  >
+                    {COPY.corpus.addQuestion}
+                  </Button>
+                </Stack>
+                <ScrollArea>
+                  <Table>
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>Question</Table.Th>
+                        <Table.Th>Source</Table.Th>
                       </Table.Tr>
-                    ))
-                  )}
-                </Table.Tbody>
-              </Table>
-            </ScrollArea>
-          </Card>
+                    </Table.Thead>
+                    <Table.Tbody>
+                      {data.questions.length === 0 ? (
+                        <Table.Tr>
+                          <Table.Td colSpan={2}>
+                            <EmptyState
+                              title={COPY.corpus.emptyQuestions}
+                              hint={COPY.corpus.emptyQuestionsHint}
+                            />
+                          </Table.Td>
+                        </Table.Tr>
+                      ) : (
+                        data.questions.map((q) => (
+                          <Table.Tr key={q.id}>
+                            <Table.Td>{q.text}</Table.Td>
+                            <Table.Td>{QUESTION_SOURCE_LABEL[q.origin] ?? q.origin}</Table.Td>
+                          </Table.Tr>
+                        ))
+                      )}
+                    </Table.Tbody>
+                  </Table>
+                </ScrollArea>
+              </Stack>
+            </Tabs.Panel>
 
-          <Card withBorder>
-            <Group justify="space-between" mb="sm">
-              <Text fw={600}>{COPY.corpus.configureHeading}</Text>
-              <Button variant="light" size="compact-sm" onClick={applySuggestedMatrix}>
-                {COPY.corpus.suggestedPreset}
-              </Button>
-            </Group>
-            <Stack gap="sm">
-              <TextInput
-                label={COPY.corpus.runNameLabel}
-                description={COPY.corpus.runNameDescription}
-                placeholder={`${data.corpus.name} comparison`}
-                value={runName}
-                onChange={(e) => setRunName(e.currentTarget.value)}
-              />
-              <MultiSelect
-                label={COPY.corpus.embedLabel}
-                description={COPY.corpus.embedDescription}
-                searchable
-                data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
-                value={embModels}
-                onChange={setEmbModels}
-              />
-              <Checkbox
-                label={COPY.corpus.noRerankLabel}
-                checked={noRerank}
-                onChange={(e) => setNoRerank(e.currentTarget.checked)}
-              />
-              <MultiSelect
-                label={COPY.corpus.rerankLabel}
-                description={COPY.corpus.rerankDescription}
-                searchable
-                data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
-                value={rerModels}
-                onChange={setRerModels}
-              />
-              <MultiSelect
-                label={COPY.corpus.genLabel}
-                description={COPY.corpus.genDescription}
-                searchable
-                data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
-                value={genModels}
-                onChange={setGenModels}
-              />
-              <Group grow wrap="wrap">
-                <NumberInput
-                  label={COPY.corpus.retrieveLabel}
-                  value={retrieveK}
-                  onChange={(v) => setRetrieveK(Number(v))}
-                  min={1}
+            <Tabs.Panel value="compare" pt="md">
+              <Stack gap="sm">
+                <Group justify="flex-end">
+                  <Button variant="light" size="compact-sm" onClick={applySuggestedMatrix}>
+                    {COPY.corpus.suggestedPreset}
+                  </Button>
+                </Group>
+                <TextInput
+                  label={COPY.corpus.runNameLabel}
+                  placeholder={`${data.corpus.name} comparison`}
+                  value={runName}
+                  onChange={(e) => setRunName(e.currentTarget.value)}
                 />
-                <NumberInput
-                  label={COPY.corpus.finalKLabel}
-                  value={finalK}
-                  onChange={(v) => setFinalK(Number(v))}
-                  min={1}
+                <MultiSelect
+                  label={COPY.corpus.embedLabel}
+                  description={COPY.corpus.embedDescription}
+                  searchable
+                  data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
+                  value={embModels}
+                  onChange={setEmbModels}
                 />
-                <NumberInput
-                  label={COPY.corpus.thresholdLabel}
-                  value={threshold}
-                  onChange={setThreshold}
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  decimalScale={2}
+                <Checkbox
+                  label={COPY.corpus.noRerankLabel}
+                  checked={noRerank}
+                  onChange={(e) => setNoRerank(e.currentTarget.checked)}
                 />
-                <NumberInput
-                  label={COPY.corpus.budgetLabel}
-                  value={budget}
-                  onChange={setBudget}
-                  min={0.1}
-                  step={0.5}
+                <MultiSelect
+                  label={COPY.corpus.rerankLabel}
+                  searchable
+                  data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
+                  value={rerModels}
+                  onChange={setRerModels}
                 />
-              </Group>
-              <Text size="sm" c={matrix.overLimit ? "red" : "dimmed"}>
-                {matrix.line}
-              </Text>
-              {!data.questions.length && (
-                <Alert color="yellow" title={COPY.corpus.needQuestionsTitle}>
-                  {COPY.corpus.needQuestions}
-                </Alert>
-              )}
-              {matrix.overLimit && (
-                <Alert color="red" title={COPY.corpus.tooManyTests}>
-                  {COPY.corpus.tooManyTestsBody}
-                </Alert>
-              )}
-              {launch.isError && (
-                <Alert color="red" title="Could not start comparison">
-                  {launch.error instanceof Error
-                    ? friendlyError(launch.error.message)
-                    : "Something went wrong."}
-                </Alert>
-              )}
-              <Group>
+                <MultiSelect
+                  label={COPY.corpus.genLabel}
+                  description={COPY.corpus.genDescription}
+                  searchable
+                  data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
+                  value={genModels}
+                  onChange={setGenModels}
+                />
+                <Group grow wrap="wrap">
+                  <NumberInput
+                    label={COPY.corpus.retrieveLabel}
+                    value={retrieveK}
+                    onChange={(v) => setRetrieveK(Number(v))}
+                    min={1}
+                  />
+                  <NumberInput
+                    label={COPY.corpus.finalKLabel}
+                    value={finalK}
+                    onChange={(v) => setFinalK(Number(v))}
+                    min={1}
+                  />
+                  <NumberInput
+                    label={COPY.corpus.thresholdLabel}
+                    value={threshold}
+                    onChange={setThreshold}
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    decimalScale={2}
+                  />
+                  <NumberInput
+                    label={COPY.corpus.budgetLabel}
+                    value={budget}
+                    onChange={setBudget}
+                    min={0.1}
+                    step={0.5}
+                  />
+                </Group>
+                <Text size="sm" c={matrix.overLimit ? "red" : "dimmed"}>
+                  {matrix.line}
+                </Text>
+                {!data.questions.length && (
+                  <Alert color="yellow" title={COPY.corpus.needQuestionsTitle}>
+                    {COPY.corpus.needQuestions}
+                  </Alert>
+                )}
+                {matrix.overLimit && (
+                  <Alert color="red" title={COPY.corpus.tooManyTests}>
+                    {COPY.corpus.tooManyTestsBody}
+                  </Alert>
+                )}
+                {launch.isError && (
+                  <Alert color="red" title="Could not start comparison">
+                    {launch.error instanceof Error
+                      ? friendlyError(launch.error.message)
+                      : "Something went wrong."}
+                  </Alert>
+                )}
                 <Button
                   onClick={() => setConfirmOpen(true)}
                   loading={launch.isPending}
                   disabled={!canLaunch}
+                  w="fit-content"
                 >
                   {COPY.corpus.startButton}
                 </Button>
-              </Group>
-            </Stack>
-          </Card>
+              </Stack>
+            </Tabs.Panel>
+          </Tabs>
+
+          {id && (
+            <Card withBorder p="sm">
+              <Button variant="subtle" onClick={toggleHistory} fullWidth justify="space-between">
+                {COPY.corpus.recentRuns}
+                <span>{historyOpen ? "▾" : "▸"}</span>
+              </Button>
+              <Collapse in={historyOpen}>
+                <RunHistoryList corpusId={id} embedded />
+              </Collapse>
+            </Card>
+          )}
 
           <Modal
             opened={confirmOpen}

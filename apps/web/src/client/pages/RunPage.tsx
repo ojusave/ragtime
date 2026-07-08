@@ -4,25 +4,26 @@ import {
   Button,
   Card,
   Checkbox,
+  Collapse,
   Grid,
   Group,
   Loader,
   Modal,
-  Progress,
   Stack,
   Text,
 } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import ActivityFeed from "../components/ActivityFeed";
-import FlowSteps from "../components/FlowSteps";
 import PageHeader from "../components/PageHeader";
 import QueryState from "../components/QueryState";
+import RunSummaryBar from "../components/RunSummaryBar";
 import TrialGrid from "../components/TrialGrid";
 import TrialStagesPanel from "../components/TrialStagesPanel";
 import { api } from "../lib/api";
-import { COPY, FLOW_STEPS, friendlyError, runStatusLabel } from "../lib/copy";
+import { COPY, friendlyError, runStatusLabel } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
 import type { ComboResult, TrialStages } from "@ragtime/core";
 
@@ -62,6 +63,7 @@ export default function RunPage() {
   const [stayOnPage, setStayOnPage] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [canceling, setCanceling] = useState(false);
+  const [indexingOpen, { toggle: toggleIndexing }] = useDisclosure(false);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["run", id],
@@ -95,6 +97,14 @@ export default function RunPage() {
   const pendingOrRunning =
     data?.grid.filter((g) => g.status === "pending" || g.status === "running").length ?? 0;
   const allTrialsDone = total > 0 && complete === total;
+  const embeddings = data?.phases?.embeddings ?? [];
+  const indexingDone = embeddings.every((e) => e.done >= e.total);
+  const indexingSummary =
+    embeddings.length === 0
+      ? null
+      : indexingDone
+        ? `Indexed for ${embeddings.length} search models`
+        : `Indexing ${embeddings.filter((e) => e.done < e.total).length} of ${embeddings.length} search models`;
 
   useEffect(() => {
     const status = data?.run.status;
@@ -136,30 +146,26 @@ export default function RunPage() {
         <Stack gap="md">
           <PageHeader
             title={data.run.name}
-            description={COPY.run.description}
             crumbs={[
               { label: "Home", to: "/" },
               { label: "Dataset", to: `/corpus/${data.run.corpusId}` },
               { label: data.run.name },
             ]}
             actions={
-              <Group gap="sm">
-                <Badge size="lg" color={data.run.status === "failed" ? "red" : undefined}>
-                  {runStatusLabel(data.run.status)}
-                </Badge>
-                <Button variant="outline" component={Link} to={`/run/${id}/results`}>
-                  {COPY.run.viewResults}
-                </Button>
-                {ACTIVE.has(data.run.status) && (
+              ACTIVE.has(data.run.status) ? (
+                <Group gap="sm">
+                  <Badge size="lg">{runStatusLabel(data.run.status)}</Badge>
                   <Button color="red" variant="outline" onClick={() => setCancelOpen(true)}>
                     {COPY.run.cancel}
                   </Button>
-                )}
-              </Group>
+                </Group>
+              ) : (
+                <Badge size="lg" color={data.run.status === "failed" ? "red" : undefined}>
+                  {runStatusLabel(data.run.status)}
+                </Badge>
+              )
             }
           />
-
-          <FlowSteps active={2} steps={[...FLOW_STEPS]} />
 
           {data.run.status === "failed" && (
             <Alert color="red" title={COPY.run.failedTitle}>
@@ -181,28 +187,31 @@ export default function RunPage() {
             />
           )}
 
-          <Text>
-            {COPY.run.spend(
-              Number(data.run.totalCostUsd).toFixed(2),
-              Number(data.run.budgetUsd).toFixed(2)
-            )}
-          </Text>
-          <Progress value={total ? (complete / total) * 100 : 0} size="lg" aria-label="Test progress" />
-          <Text size="sm" c="dimmed">
-            {COPY.run.progress(complete, total)}
-          </Text>
+          <RunSummaryBar
+            spent={Number(data.run.totalCostUsd).toFixed(2)}
+            budget={Number(data.run.budgetUsd).toFixed(2)}
+            complete={complete}
+            total={total}
+            docsReady={data.phases?.documents.ready}
+            docsTotal={data.phases?.documents.total}
+          />
 
-          <Text size="sm" c="dimmed">
-            {COPY.run.docsIndexed(data.phases?.documents.ready ?? 0, data.phases?.documents.total ?? 0)}
-          </Text>
-          {(data.phases?.embeddings ?? []).map((e) => (
-            <div key={e.model}>
-              <Text size="xs" mb={4}>
-                {COPY.run.embeddings(e.model, e.done, e.total)}
-              </Text>
-              <Progress value={e.total ? (e.done / e.total) * 100 : 0} size="sm" mb="sm" />
-            </div>
-          ))}
+          {indexingSummary && (
+            <>
+              <Button variant="subtle" size="compact-sm" onClick={toggleIndexing} px={0}>
+                {indexingSummary} {indexingOpen ? "▾" : "▸"}
+              </Button>
+              <Collapse in={indexingOpen}>
+                <Stack gap={4}>
+                  {embeddings.map((e) => (
+                    <Text key={e.model} size="xs" c="dimmed">
+                      {COPY.run.embeddings(e.model, e.done, e.total)}
+                    </Text>
+                  ))}
+                </Stack>
+              </Collapse>
+            </>
+          )}
 
           <Grid>
             <Grid.Col span={{ base: 12, md: 8 }}>

@@ -156,11 +156,6 @@ export default function InspectPage() {
           { label: "Dataset", to: `/corpus/${corpusId}` },
           { label: COPY.inspect.title },
         ]}
-        actions={
-          <Button component={Link} to={`/corpus/${corpusId}`} variant="subtle">
-            {COPY.results.backToDataset}
-          </Button>
-        }
       />
 
       <Card withBorder>

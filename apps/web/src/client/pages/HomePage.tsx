@@ -12,7 +12,6 @@ import {
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
-import FlowSteps from "../components/FlowSteps";
 import QueryState from "../components/QueryState";
 import { api } from "../lib/api";
 import { COPY, FLOW_STEPS, friendlyError } from "../lib/copy";
@@ -82,7 +81,9 @@ export default function HomePage() {
         </Stack>
       </Card>
 
-      <FlowSteps active={0} steps={[...FLOW_STEPS]} />
+      <Text size="sm" c="dimmed">
+        {FLOW_STEPS.map((s) => s.label).join(" → ")}
+      </Text>
 
       <Title order={3}>{COPY.home.datasetsHeading}</Title>
       <QueryState isLoading={isLoading} isError={isError} error={error} onRetry={() => refetch()}>
