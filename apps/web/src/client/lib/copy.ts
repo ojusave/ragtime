@@ -107,7 +107,12 @@ export function friendlyError(raw: string): string {
     return "OpenRouter credits are low. Add credits at openrouter.ai/settings/credits.";
   }
   if (msg.includes("matrix would run") || msg.includes("max ")) {
-    return msg.replace(/evaluations?/gi, "tests").replace(/model stack/gi, "model setup");
+    return msg
+      .replace(/This matrix would run (\d+) trials/gi, "This comparison would run $1 tests")
+      .replace(/evaluations?/gi, "tests")
+      .replace(/trials/gi, "tests")
+      .replace(/model stack/gi, "model setup")
+      .replace(/embedding, rerank, or generation models/gi, "search, rerank, or answer models");
   }
   if (msg.includes("Not found")) {
     return "That item was not found. It may have been deleted.";
@@ -224,7 +229,7 @@ export const COPY = {
     useRerankLabel: "Use reranking",
     failedTitle: "Test failed",
     emptyHint: "Enter a question and run the test to inspect each step.",
-    queryEmbedding: "Question vector",
+    queryEmbedding: "Prepared for search",
     dimensions: (n: number) => `${n} dimensions`,
   },
   history: {

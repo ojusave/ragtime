@@ -3,13 +3,13 @@ import type { ComboResult } from "@ragtime/core";
 /** Download combo leaderboard as CSV. */
 export function downloadResultsCsv(runName: string, rows: ComboResult[]) {
   const header = [
-    "model_stack",
-    "quality",
+    "model_setup",
+    "quality_score",
     "cost_per_question_usd",
-    "p50_latency_ms",
-    "p95_latency_ms",
-    "failures",
-    "self_judged",
+    "typical_speed_ms",
+    "slowest_5_percent_ms",
+    "failed_tests",
+    "self_scored",
   ];
   const lines = rows.map((c) =>
     [
