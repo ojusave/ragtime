@@ -6,16 +6,17 @@ import CorpusPage from "./pages/CorpusPage";
 import InspectPage from "./pages/InspectPage";
 import RunPage from "./pages/RunPage";
 import ResultsPage from "./pages/ResultsPage";
+import NotFoundPage from "./pages/NotFoundPage";
 
 export default function App() {
   return (
     <AppShell header={{ height: 56 }} padding="md">
       <AppShell.Header>
-        <Group h="100%" px="md" justify="space-between">
+        <Group h="100%" px="md" justify="space-between" wrap="nowrap">
           <Anchor component={Link} to="/" underline="never" c="dark">
             <Title order={3}>RAGtime</Title>
           </Anchor>
-          <Group>
+          <Group gap="xs" visibleFrom="sm">
             <Button
               component="a"
               href={DEPLOY_TO_RENDER_URL}
@@ -46,6 +47,7 @@ export default function App() {
           <Route path="/corpus/:id/inspect" element={<InspectPage />} />
           <Route path="/run/:id" element={<RunPage />} />
           <Route path="/run/:id/results" element={<ResultsPage />} />
+          <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </AppShell.Main>
       <AppShell.Footer p="sm">

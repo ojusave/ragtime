@@ -82,6 +82,28 @@ export async function buildServer() {
     return { data: { corpus, documents: docs, questions: qs } };
   });
 
+  app.get<{ Params: { id: string } }>("/api/corpora/:id/runs", async (req, reply) => {
+    const corpus = await db.query.corpora.findFirst({
+      where: eq(corpora.id, req.params.id),
+    });
+    if (!corpus) return reply.status(404).send({ error: "Not found" });
+    const rows = await db
+      .select({
+        id: runs.id,
+        name: runs.name,
+        status: runs.status,
+        totalCostUsd: runs.totalCostUsd,
+        budgetUsd: runs.budgetUsd,
+        createdAt: runs.createdAt,
+        finishedAt: runs.finishedAt,
+      })
+      .from(runs)
+      .where(eq(runs.corpusId, req.params.id))
+      .orderBy(desc(runs.createdAt))
+      .limit(20);
+    return { data: rows };
+  });
+
   app.post<{ Params: { id: string } }>(
     "/api/corpora/:id/documents",
     async (req, reply) => {

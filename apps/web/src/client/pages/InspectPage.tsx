@@ -13,13 +13,14 @@ import {
   Stack,
   Text,
   TextInput,
-  Title,
 } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import PageHeader from "../components/PageHeader";
 import TrialStagesPanel from "../components/TrialStagesPanel";
 import { api } from "../lib/api";
+import { friendlyError } from "../lib/copy";
 import { formatReceipt } from "../lib/receipt";
 import type { TrialStages } from "@ragtime/core";
 
@@ -153,17 +154,20 @@ export default function InspectPage() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between" align="flex-start">
-        <Stack gap={4}>
-          <Title order={2}>Query inspector</Title>
-          <Text size="sm" c="dimmed">
-            Test one question through the full RAG pipeline before launching a comparison run.
-          </Text>
-        </Stack>
-        <Button component={Link} to={`/corpus/${corpusId}`} variant="subtle">
-          Back to corpus
-        </Button>
-      </Group>
+      <PageHeader
+        title="Query inspector"
+        description="Test one question through the full RAG pipeline before launching a comparison run."
+        crumbs={[
+          { label: "Home", to: "/" },
+          { label: "Corpus", to: `/corpus/${corpusId}` },
+          { label: "Inspector" },
+        ]}
+        actions={
+          <Button component={Link} to={`/corpus/${corpusId}`} variant="subtle">
+            Back to corpus
+          </Button>
+        }
+      />
 
       <Card withBorder>
         <Stack gap="sm">
@@ -228,13 +232,13 @@ export default function InspectPage() {
           </Button>
           {pipelineError && (
             <Alert color="red" title="Pipeline failed">
-              {pipelineError}
+              {friendlyError(pipelineError)}
             </Alert>
           )}
         </Stack>
       </Card>
 
-      <Group grow align="stretch" wrap="nowrap">
+      <Group grow align="stretch" wrap="wrap">
         {(["embed", "retrieve", "rerank", "generate", "judge"] as const).map((name, i) => {
           const done = stageMap.get(name);
           const active = activeStage === name;
@@ -245,6 +249,14 @@ export default function InspectPage() {
               key={name}
               withBorder
               p="sm"
+              tabIndex={done ? 0 : -1}
+              role={done ? "button" : undefined}
+              onKeyDown={(e) => {
+                if (done && (e.key === "Enter" || e.key === " ")) {
+                  e.preventDefault();
+                  setSelectedStage(name);
+                }
+              }}
               onClick={() => done && setSelectedStage(name)}
               style={{
                 opacity: done || active ? 1 : 0.45,

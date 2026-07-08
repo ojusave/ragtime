@@ -13,6 +13,18 @@ type EventRow = {
 
 const TERMINAL = new Set(["complete", "failed", "canceled", "budget_exceeded"]);
 
+function formatTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return "";
+  }
+}
+
 export default function ActivityFeed({
   runId,
   runStatus,
@@ -40,6 +52,7 @@ export default function ActivityFeed({
     () =>
       [...events].reverse().map((e) => ({
         id: e.id,
+        time: formatTime(e.at),
         text: formatActivityLine(e),
       })),
     [events]
@@ -50,6 +63,9 @@ export default function ActivityFeed({
       <Stack gap={6}>
         {lines.map((l) => (
           <Text key={l.id} size="sm">
+            <Text span size="xs" c="dimmed" mr={6}>
+              {l.time}
+            </Text>
             {l.text}
           </Text>
         ))}
