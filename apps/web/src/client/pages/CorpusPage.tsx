@@ -11,8 +11,9 @@ import {
   Text,
   TextInput,
   Title,
+  Alert,
 } from "@mantine/core";
-import { Dropzone, MIME_TYPES } from "@mantine/dropzone";
+import { Dropzone } from "@mantine/dropzone";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
@@ -120,7 +121,7 @@ export default function CorpusPage() {
         <Title order={4} mb="sm">Documents</Title>
         <Dropzone
           onDrop={(files) => files[0] && upload.mutate(files[0])}
-          accept={[MIME_TYPES.txt, "text/markdown"]}
+          accept={["text/plain", "text/markdown"]}
           mb="md"
         >
           <Text ta="center">Drop .txt or .md files</Text>
@@ -202,6 +203,11 @@ export default function CorpusPage() {
             <NumberInput label="Budget USD" value={budget} onChange={setBudget} min={0.1} step={0.5} />
           </Group>
           <Text size="sm" c="dimmed">{matrixSummary}</Text>
+          {launch.isError && (
+            <Alert color="red" title="Could not start bake-off">
+              {launch.error instanceof Error ? launch.error.message : "Unknown error"}
+            </Alert>
+          )}
           <Button component={Link} to={`/corpus/${id}/inspect`} variant="light">
             Inspect a single query
           </Button>

@@ -166,7 +166,7 @@ export function registerInspectRoutes(app: FastifyInstance) {
 
       send("done", { totalCostUsd: totalCost, totalLatencyMs: totalLatency });
     } catch (err) {
-      send("error", { message: err instanceof Error ? err.message : String(err) });
+      send("pipeline_error", { message: err instanceof Error ? err.message : String(err) });
     } finally {
       sessions.delete(req.params.id);
       reply.raw.end();

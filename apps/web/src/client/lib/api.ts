@@ -10,7 +10,12 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error((err as { error?: string }).error ?? res.statusText);
+    const body = err as { error?: string | object; message?: string };
+    const message =
+      body.message ??
+      (typeof body.error === "string" ? body.error : undefined) ??
+      res.statusText;
+    throw new Error(message);
   }
   const json = await res.json();
   return json.data as T;

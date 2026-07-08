@@ -23,7 +23,13 @@ let catalogCache: { data: unknown; expires: number } | null = null;
 
 function getRenderClient(): Render {
   const baseUrl = process.env.RENDER_API_URL;
-  return baseUrl ? new Render({ baseUrl }) : new Render();
+  const token = process.env.RENDER_API_KEY;
+  if (!token) {
+    throw new Error(
+      "RENDER_API_KEY is not set. Add a Render API key to the web service to trigger workflows."
+    );
+  }
+  return new Render({ baseUrl, token });
 }
 
 export async function buildServer() {
@@ -223,10 +229,23 @@ export async function buildServer() {
       await db.insert(combos).values(comboRows);
     }
 
-    const render = getRenderClient();
-    await render.workflows.startTask(`${config.workflowSlug}/run_bakeoff`, [
-      run!.id,
-    ]);
+    try {
+      const render = getRenderClient();
+      await render.workflows.startTask(`${config.workflowSlug}/run_bakeoff`, [
+        run!.id,
+      ]);
+    } catch (err) {
+      await db
+        .update(runs)
+        .set({ status: "failed", error: err instanceof Error ? err.message : String(err) })
+        .where(eq(runs.id, run!.id));
+      return reply.status(502).send({
+        error:
+          err instanceof Error
+            ? err.message
+            : "Failed to start workflow. Check RENDER_API_KEY and WORKFLOW_SLUG on the web service.",
+      });
+    }
 
     return { data: { runId: run!.id } };
   });

@@ -1,4 +1,5 @@
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -51,6 +52,7 @@ export default function InspectPage() {
   const [completed, setCompleted] = useState<StageState[]>([]);
   const [totals, setTotals] = useState<{ cost: number; latency: number } | null>(null);
   const [highlightChunkId, setHighlightChunkId] = useState<string | null>(null);
+  const [pipelineError, setPipelineError] = useState<string | null>(null);
 
   const { data: catalog } = useQuery({
     queryKey: ["models"],
@@ -93,6 +95,7 @@ export default function InspectPage() {
     setRunning(true);
     setCompleted([]);
     setTotals(null);
+    setPipelineError(null);
     setActiveStage("embed");
     setSelectedStage("embed");
 
@@ -123,11 +126,19 @@ export default function InspectPage() {
       setRunning(false);
       es.close();
     });
-    es.addEventListener("error", () => {
+    es.addEventListener("pipeline_error", (ev) => {
+      const payload = JSON.parse((ev as MessageEvent).data) as { message?: string };
+      setPipelineError(payload.message ?? "Pipeline failed");
       setRunning(false);
       setActiveStage(null);
       es.close();
     });
+    es.onerror = () => {
+      setPipelineError((prev) => prev ?? "Connection to inspector stream failed");
+      setRunning(false);
+      setActiveStage(null);
+      es.close();
+    };
   }
 
   const reducedMotion =
@@ -186,6 +197,11 @@ export default function InspectPage() {
           <Button onClick={runInspect} loading={running} disabled={!query || !emb || !gen}>
             Run pipeline
           </Button>
+          {pipelineError && (
+            <Alert color="red" title="Pipeline error">
+              {pipelineError}
+            </Alert>
+          )}
         </Stack>
       </Card>
 
