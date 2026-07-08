@@ -229,6 +229,26 @@ export async function buildServer() {
       await db.insert(combos).values(comboRows);
     }
 
+    let questionCount: number;
+    if (body.questionIds === "all") {
+      const qs = await db
+        .select({ id: questions.id })
+        .from(questions)
+        .where(eq(questions.corpusId, body.corpusId));
+      questionCount = qs.length;
+    } else {
+      questionCount = body.questionIds.length;
+    }
+    const trialCount = comboRows.length * questionCount;
+    const maxTrials = envNumber("MAX_TRIALS_PER_RUN", 324);
+    if (trialCount > maxTrials) {
+      await db.delete(combos).where(eq(combos.runId, run!.id));
+      await db.delete(runs).where(eq(runs.id, run!.id));
+      return reply.status(400).send({
+        error: `This matrix would run ${trialCount} trials (max ${maxTrials}). Reduce embedding, rerank, or generation models, or pick fewer questions.`,
+      });
+    }
+
     try {
       const render = getRenderClient();
       await render.workflows.startTask(`${config.workflowSlug}/run_bakeoff`, [

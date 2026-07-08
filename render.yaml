@@ -22,7 +22,10 @@ services:
       - key: RENDER_API_KEY
         sync: false
       - key: APP_URL
-        sync: false
+        fromService:
+          name: ragtime-web
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
       - key: OPENROUTER_APP_TITLE
         value: RAGtime
       - key: WORKFLOW_SLUG
@@ -31,6 +34,10 @@ services:
         value: "5"
       - key: EMBED_BATCH_SIZE
         value: "64"
+      - key: DB_POOL_MAX
+        value: "3"
+      - key: MAX_TRIALS_PER_RUN
+        value: "324"
       - key: CHAOS_FAILURE_RATE
         value: "0"
       - key: NODE_VERSION

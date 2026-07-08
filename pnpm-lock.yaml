@@ -185,6 +185,9 @@ importers:
       drizzle-kit:
         specifier: ^0.30.4
         version: 0.30.6
+      fflate:
+        specifier: ^0.8.2
+        version: 0.8.3
       tsx:
         specifier: ^4.19.3
         version: 4.23.0
@@ -1645,6 +1648,9 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  fflate@0.8.3:
+    resolution: {integrity: sha512-tbZNuJrLwGUp3zshBtdy4W+ORxZuIh8a5ilyIEQDC5rY1f3U20JMry0Ll3WBzU58EZKsEuJFXhb5gwv8CsPvgA==}
 
   find-my-way@9.6.0:
     resolution: {integrity: sha512-Zf4Xve4RymLl7NgaavNebZ01joJ8MfVerOG43wy7SHLO+r+K0C6d/SE0BiR7AV5V1VOCFlOP7ecdo+I4qmiHrQ==}
@@ -3478,6 +3484,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.5):
     optionalDependencies:
       picomatch: 4.0.5
+
+  fflate@0.8.3: {}
 
   find-my-way@9.6.0:
     dependencies:

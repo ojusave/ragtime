@@ -2,34 +2,28 @@ import { eq } from "drizzle-orm";
 import { getDb, closeDb } from "./client.js";
 import { corpora, documents, questions } from "./schema.js";
 import { migrate } from "./migrate.js";
-import { PIGEON_DOCS, PIGEON_QUESTIONS } from "./seed-data.js";
+import { SEED_CORPORA, type SeedCorpus } from "./datasets/index.js";
 
-const CORPUS_NAME = "Pigeon docs";
-
-export async function seed(): Promise<void> {
-  await migrate();
-  const db = getDb();
-
+async function seedCorpus(db: ReturnType<typeof getDb>, bundle: SeedCorpus): Promise<string> {
   let corpus = await db.query.corpora.findFirst({
-    where: eq(corpora.name, CORPUS_NAME),
+    where: eq(corpora.name, bundle.corpusName),
   });
 
   if (!corpus) {
     const [created] = await db
       .insert(corpora)
       .values({
-        name: CORPUS_NAME,
-        description:
-          "Fictional Pigeon message-delivery API docs for RAGtime demos",
+        name: bundle.corpusName,
+        description: bundle.description,
       })
       .returning();
     corpus = created!;
-    console.log(`Created corpus: ${corpus.id}`);
+    console.log(`Created corpus: ${corpus.name} (${corpus.id})`);
   } else {
-    console.log(`Corpus already exists: ${corpus.id}`);
+    console.log(`Corpus already exists: ${corpus.name} (${corpus.id})`);
   }
 
-  for (const doc of PIGEON_DOCS) {
+  for (const doc of bundle.documents) {
     const existing = await db.query.documents.findFirst({
       where: (d, { and, eq: eqFn }) =>
         and(eqFn(d.corpusId, corpus!.id), eqFn(d.title, doc.title)),
@@ -44,10 +38,10 @@ export async function seed(): Promise<void> {
       rawText: doc.content,
       status: "pending",
     });
-    console.log(`  Added document: ${doc.title}`);
+    console.log(`  Added document: ${doc.title.slice(0, 60)}`);
   }
 
-  for (const q of PIGEON_QUESTIONS) {
+  for (const q of bundle.questions) {
     const existing = await db.query.questions.findFirst({
       where: (row, { and, eq: eqFn }) =>
         and(eqFn(row.corpusId, corpus!.id), eqFn(row.text, q.text)),
@@ -60,13 +54,29 @@ export async function seed(): Promise<void> {
       referenceAnswer: q.referenceAnswer,
       origin: "manual",
     });
-    console.log(`  Added question: ${q.text.slice(0, 50)}...`);
+    console.log(`  Added question: ${q.text.slice(0, 60)}...`);
   }
 
-  console.log("\nSeed complete.");
-  console.log(`Corpus ID: ${corpus.id}`);
+  return corpus.id;
+}
+
+export async function seed(): Promise<void> {
+  await migrate();
+  const db = getDb();
+
+  console.log(`Seeding ${SEED_CORPORA.length} corpora...\n`);
+  const ids: string[] = [];
+  for (const bundle of SEED_CORPORA) {
+    console.log(`--- ${bundle.corpusName} ---`);
+    if (bundle.source) console.log(`Source: ${bundle.source}`);
+    ids.push(await seedCorpus(db, bundle));
+    console.log("");
+  }
+
+  console.log("Seed complete.");
+  console.log("Default bake-off corpus (SciFact):", ids[0]);
   console.log(
-    "Run `pnpm suggest-matrix` with OPENROUTER_API_KEY set to print a suggested model matrix."
+    "Run `pnpm suggest-matrix` with OPENROUTER_API_KEY set to print a starter model matrix."
   );
 
   await closeDb();

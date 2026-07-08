@@ -67,15 +67,15 @@ Render Blueprints do not yet support Workflow services. In the Dashboard:
 | `OPENROUTER_API_KEY` | Web + Workflow | All model calls (web: models proxy only) |
 | `RENDER_API_KEY` | Web only | Trigger and cancel workflow tasks |
 
-Also set on **Web**:
+Also set on **Web** (Blueprint auto-wires the rest):
 
-- `APP_URL`: public URL (OpenRouter attribution + `HTTP-Referer`)
-- `WORKFLOW_SLUG`: must match Dashboard slug
+- `WORKFLOW_SLUG`: must match Dashboard slug (`ragtime-workflows` in `render.yaml`)
 
-Set on **Workflow**:
+Set on **Workflow** (manual; Blueprints do not support Workflow services yet):
 
-- `DATABASE_URL`: same Postgres connection string as web
-- `OPENROUTER_API_KEY`, `APP_URL`, and optional tuning vars below
+- `DATABASE_URL`: link from `ragtime-db` (internal URL)
+- `OPENROUTER_API_KEY`
+- `APP_URL`: set to the web service public URL (e.g. `https://ragtime-web.onrender.com`) for OpenRouter `HTTP-Referer`
 
 Optional: `MODEL_GATEWAY=fake` on both services for a zero-spend smoke deploy (no OpenRouter key needed).
 
@@ -94,7 +94,7 @@ Run `pnpm seed` twice to confirm idempotency.
 
 ### 5. Launch
 
-Open the web URL, open the **Pigeon docs** corpus, configure a small matrix, and click **Launch bake-off**. Use **Inspect a single query** to watch embed, retrieve, rerank, generate, and judge stage by stage.
+Open the web URL, open the **SciFact (BEIR)** corpus, configure a small matrix, and click **Launch bake-off**. Use **Inspect a single query** to watch embed, retrieve, rerank, generate, and judge stage by stage.
 
 ## Local development
 
@@ -132,7 +132,7 @@ Prints embed, rerank (if `SMOKE_RERANK_MODEL` set), and chat receipts.
 
 ## Demo script
 
-1. `pnpm seed` loads **Pigeon docs** (12 fictional API docs) and 12 golden questions, including one **unanswerable** fax question.
+1. `pnpm seed` loads **SciFact (BEIR)** (100 PubMed abstracts from the [BEIR SciFact benchmark](https://huggingface.co/datasets/BeIR/scifact) plus 12 gold test claims and one unanswerable claim). Also seeds legacy **Pigeon docs** for offline smoke tests.
 2. Set `MODEL_GATEWAY=fake` locally or use a small real matrix from `pnpm suggest-matrix`.
 3. Launch a small bake-off: 2 embedding x (none + 1 rerank) x 2 chat models x 12 questions.
 4. Open `/run/:id`: narrate the phase strip (document ingest, per-model embedding bars), the trial grid filling in, and the **activity feed** (embedding batches, trial stages, retries).
@@ -140,7 +140,13 @@ Prints embed, rerank (if `SMOKE_RERANK_MODEL` set), and chat receipts.
 6. Set `CHAOS_FAILURE_RATE=0.15` on the workflow service, redeploy, launch again: watch failed cells retry and recover in the feed.
 7. Kill a running task from the Render Dashboard mid-run: run still converges; `attempts > 1` without duplicate stage receipts.
 8. Open trial drill-down: rerank before/after ordering, judge scores, per-stage receipts (`n/a` when cost is unknown).
-9. For the fax question: faithful models decline; hallucinating models score low.
+9. For the unanswerable cosmic-radiation claim: faithful models decline; hallucinating models score low.
+
+Regenerate the SciFact JSON from upstream BEIR data:
+
+```bash
+pnpm --filter @ragtime/db build:scifact-seed
+```
 
 ## Cost expectations
 

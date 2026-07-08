@@ -5,8 +5,10 @@ import {
   QUESTION_GEN_SYSTEM,
   buildQuestionGenUserPrompt,
 } from "@ragtime/core";
+import { getAppConfig } from "@ragtime/core";
 import { getDb, schema, emitEvent } from "@ragtime/db";
 import { wirePorts } from "../wiring.js";
+import { runInWaves } from "../lib/fanout.js";
 import { ingestDocument, embedCorpus } from "./ingest.js";
 import { runTrial } from "./trial.js";
 
@@ -140,7 +142,22 @@ export const runBakeoff = task(
       .from(trials)
       .where(sql`${trials.runId} = ${runId} AND ${trials.status} NOT IN ('complete', 'skipped')`);
 
-    await Promise.allSettled(pendingTrials.map((t) => runTrial(t.id)));
+    const { trialFanoutBatch } = getAppConfig();
+    await runInWaves(pendingTrials, trialFanoutBatch, (t) => runTrial(t.id));
+
+    const incomplete = await db
+      .select({ id: trials.id, status: trials.status })
+      .from(trials)
+      .where(sql`${trials.runId} = ${runId} AND ${trials.status} NOT IN ('complete', 'skipped')`);
+
+    if (incomplete.length > 0) {
+      const failed = incomplete.filter((t) => t.status === "failed").length;
+      const stuck = incomplete.length - failed;
+      const message = `Bake-off incomplete: ${failed} failed, ${stuck} pending/running trials`;
+      await db.update(runs).set({ status: "failed", error: message }).where(eq(runs.id, runId));
+      emitEvent(db, runId, "run.status", { status: "failed", error: message });
+      throw new Error(message);
+    }
 
     const updated = await db.query.runs.findFirst({ where: eq(runs.id, runId) });
     if (updated?.status === "budget_exceeded") {

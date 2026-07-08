@@ -1,5 +1,6 @@
 import postgres from "postgres";
 import { drizzle, type PostgresJsDatabase } from "drizzle-orm/postgres-js";
+import { envNumber } from "@ragtime/core";
 import * as schema from "./schema.js";
 
 export type Db = PostgresJsDatabase<typeof schema>;
@@ -13,7 +14,9 @@ export function getDb(): Db {
   if (!url) throw new Error("DATABASE_URL is required");
   _client = postgres(url, {
     ssl: url.includes("localhost") ? false : { rejectUnauthorized: false },
-    max: 10,
+    max: envNumber("DB_POOL_MAX", 3),
+    idle_timeout: 20,
+    connect_timeout: 30,
   });
   _db = drizzle(_client, { schema });
   return _db;

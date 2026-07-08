@@ -5,6 +5,7 @@ import { getDb, schema, addCost, emitEvent, getMissingChunkIdsForModel } from "@
 import { getAppConfig } from "@ragtime/core";
 import { wirePorts } from "../wiring.js";
 import { maybeChaos, chunkIntoBatches } from "../lib/chaos.js";
+import { runInWaves } from "../lib/fanout.js";
 
 const { documents, chunks } = schema;
 
@@ -103,19 +104,20 @@ export const embedCorpus = task(
     model: string;
   }): Promise<{ batches: number }> {
     const db = getDb();
-    const { embedBatchSize } = getAppConfig();
+    const { embedBatchSize, embedFanoutBatch } = getAppConfig();
     const missing = await getMissingChunkIdsForModel(db, args.corpusId, args.model);
     const batches = chunkIntoBatches(missing, embedBatchSize);
-    await Promise.all(
-      batches.map((ids) =>
-        embedChunkBatch({
-          runId: args.runId,
-          corpusId: args.corpusId,
-          model: args.model,
-          chunkIds: ids,
-        })
-      )
+    const waveResults = await runInWaves(batches, embedFanoutBatch, (ids) =>
+      embedChunkBatch({
+        runId: args.runId,
+        corpusId: args.corpusId,
+        model: args.model,
+        chunkIds: ids,
+      })
     );
+    if (waveResults.some((r) => r.status === "rejected")) {
+      throw new Error("One or more embed batches failed");
+    }
     return { batches: batches.length };
   }
 );
