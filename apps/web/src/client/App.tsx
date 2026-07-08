@@ -1,6 +1,7 @@
-import { AppShell, Group, Anchor, Button, Title } from "@mantine/core";
+import { AppShell, Group, Anchor, Title } from "@mantine/core";
 import { Routes, Route, Link } from "react-router-dom";
-import { renderSignupUrlWithUtms, GITHUB_REPO_URL, DEPLOY_TO_RENDER_URL } from "./lib/render-links";
+import { GITHUB_REPO_URL } from "./lib/render-links";
+import RenderCtas from "./components/RenderCtas";
 import HomePage from "./pages/HomePage";
 import CorpusPage from "./pages/CorpusPage";
 import InspectPage from "./pages/InspectPage";
@@ -16,28 +17,7 @@ export default function App() {
           <Anchor component={Link} to="/" underline="never" c="dark">
             <Title order={3}>RAGtime</Title>
           </Anchor>
-          <Group gap="xs" visibleFrom="sm">
-            <Button
-              component="a"
-              href={DEPLOY_TO_RENDER_URL}
-              target="_blank"
-              rel="noreferrer"
-              variant="filled"
-              size="compact-sm"
-            >
-              Deploy to Render
-            </Button>
-            <Button
-              component="a"
-              href={renderSignupUrlWithUtms("navbar_button")}
-              target="_blank"
-              rel="noreferrer"
-              variant="outline"
-              size="compact-sm"
-            >
-              Sign up on Render
-            </Button>
-          </Group>
+          <RenderCtas />
         </Group>
       </AppShell.Header>
       <AppShell.Main>
@@ -54,14 +34,6 @@ export default function App() {
         <Group justify="center">
           <Anchor href={GITHUB_REPO_URL} target="_blank" rel="noreferrer" size="sm">
             GitHub repository
-          </Anchor>
-          <Anchor
-            href={renderSignupUrlWithUtms("footer_link")}
-            target="_blank"
-            rel="noreferrer"
-            size="sm"
-          >
-            Sign up on Render
           </Anchor>
         </Group>
       </AppShell.Footer>

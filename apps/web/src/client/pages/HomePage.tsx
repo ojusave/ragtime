@@ -7,7 +7,6 @@ import {
   TextInput,
   Title,
   Alert,
-  Anchor,
 } from "@mantine/core";
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -16,7 +15,6 @@ import QueryState from "../components/QueryState";
 import { api } from "../lib/api";
 import { COPY, FLOW_STEPS, friendlyError } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
-import { renderSignupUrlWithUtms, GITHUB_REPO_URL, DEPLOY_TO_RENDER_URL } from "../lib/render-links";
 
 type Corpus = { id: string; name: string; description: string | null };
 
@@ -64,20 +62,6 @@ export default function HomePage() {
           <Text size="sm" c="dimmed">
             {COPY.home.platformNote}
           </Text>
-          <Group>
-            <Button component="a" href={DEPLOY_TO_RENDER_URL} target="_blank" rel="noreferrer">
-              Deploy to Render
-            </Button>
-            <Button
-              component="a"
-              href={renderSignupUrlWithUtms("hero_cta")}
-              target="_blank"
-              rel="noreferrer"
-              variant="outline"
-            >
-              Sign up on Render
-            </Button>
-          </Group>
         </Stack>
       </Card>
 
@@ -123,12 +107,6 @@ export default function HomePage() {
           {COPY.home.createButton}
         </Button>
       </Group>
-
-      <Text size="sm" c="dimmed">
-        <Anchor href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
-          View source on GitHub
-        </Anchor>
-      </Text>
     </Stack>
   );
 }

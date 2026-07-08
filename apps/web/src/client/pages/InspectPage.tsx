@@ -16,7 +16,7 @@ import {
 } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import PageHeader from "../components/PageHeader";
 import TrialStagesPanel from "../components/TrialStagesPanel";
 import { api } from "../lib/api";
