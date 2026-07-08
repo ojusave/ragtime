@@ -41,6 +41,13 @@ export async function buildServer() {
 
   app.get("/healthz", async () => ({ ok: true }));
 
+  app.get("/api/config", async () => ({
+    data: {
+      maxTrialsPerRun: envNumber("MAX_TRIALS_PER_RUN", 324),
+      maxRunBudgetUsd: envNumber("MAX_RUN_BUDGET_USD", 5),
+    },
+  }));
+
   app.get("/api/corpora", async () => {
     const rows = await db.select().from(corpora).orderBy(desc(corpora.createdAt));
     return { data: rows };

@@ -68,7 +68,7 @@ export default function TrialStagesPanel({
           <Text fw={600} size="sm">
             Retrieve ({retrieval.chunkIds.length} candidates)
           </Text>
-          {receiptLine("Receipt", retrieval)}
+          {receiptLine("Cost & latency", retrieval)}
           {retrieval.chunkIds.map((id, i) => renderChunk(id, retrieval.scores[i], i + 1))}
         </section>
       )}
@@ -78,7 +78,7 @@ export default function TrialStagesPanel({
           <Text fw={600} size="sm">
             Rerank
           </Text>
-          {receiptLine("Receipt", rerank)}
+          {receiptLine("Cost & latency", rerank)}
           <Text size="xs" c="dimmed" mb="xs">
             Kept {rerank.keptChunkIds.length} chunks
           </Text>
@@ -104,7 +104,7 @@ export default function TrialStagesPanel({
           <Text fw={600} size="sm">
             Generate
           </Text>
-          {receiptLine("Receipt", generation)}
+          {receiptLine("Cost & latency", generation)}
           {answer && (
             <Text size="sm" mt="xs">
               {answer.split(/(\[chunk:\d+\])/g).map((part, i) =>
@@ -126,7 +126,7 @@ export default function TrialStagesPanel({
           <Text fw={600} size="sm">
             Judge ({judge.judgeModel})
           </Text>
-          {receiptLine("Receipt", judge)}
+          {receiptLine("Cost & latency", judge)}
           <Text size="sm">
             Faithfulness {judge.faithfulness} · Correctness {judge.correctness} · Completeness{" "}
             {judge.completeness}

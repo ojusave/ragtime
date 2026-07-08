@@ -1,7 +1,8 @@
-import { Badge, ScrollArea, Stack, Text } from "@mantine/core";
+import { ScrollArea, Stack, Text } from "@mantine/core";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { api } from "../lib/api";
+import { formatActivityLine } from "../lib/format-event";
 
 type EventRow = {
   id: number;
@@ -39,8 +40,7 @@ export default function ActivityFeed({
     () =>
       [...events].reverse().map((e) => ({
         id: e.id,
-        type: e.type,
-        text: formatEvent(e),
+        text: formatActivityLine(e),
       })),
     [events]
   );
@@ -50,38 +50,15 @@ export default function ActivityFeed({
       <Stack gap={6}>
         {lines.map((l) => (
           <Text key={l.id} size="sm">
-            <Badge size="xs" variant="light" mr={6}>
-              {l.type}
-            </Badge>
             {l.text}
           </Text>
         ))}
         {lines.length === 0 && (
           <Text size="sm" c="dimmed">
-            Waiting for activity...
+            Waiting for activity…
           </Text>
         )}
       </Stack>
     </ScrollArea>
   );
-}
-
-function formatEvent(e: EventRow): string {
-  const p = e.payload;
-  if (e.type === "embed.batch") {
-    const r = p.receipt as { costUsd?: number; provider?: string } | undefined;
-    const cost = r?.costUnknown ? "n/a" : `$${Number(r?.costUsd ?? 0).toFixed(4)}`;
-    return `Embedded ${p.embedded} chunks (${p.model}) ${cost}`;
-  }
-  if (e.type === "trial.stage") {
-    return `Trial ${String(p.trialId).slice(0, 8)} finished ${p.stage}`;
-  }
-  if (e.type === "trial.retry") {
-    return `Trial ${String(p.trialId).slice(0, 8)} attempt ${p.attempt} retrying`;
-  }
-  if (e.type === "chaos.injected") return "Chaos injection triggered retry";
-  if (e.type === "budget.tripped") return "Budget exceeded";
-  if (e.type === "run.status") return `Run status: ${p.status}`;
-  if (e.type === "doc.ingested") return `Document ingested (${p.chunkCount} chunks)`;
-  return JSON.stringify(p);
 }

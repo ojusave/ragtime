@@ -35,7 +35,13 @@ type StageState = {
   receipt?: { latencyMs: number; costUsd: number; costUnknown?: boolean; provider?: string };
 };
 
-const STAGES = ["embed", "retrieve", "rerank", "generate", "judge"];
+const STAGE_LABEL: Record<string, string> = {
+  embed: "Embed query",
+  retrieve: "Retrieve chunks",
+  rerank: "Rerank",
+  generate: "Generate answer",
+  judge: "Judge quality",
+};
 
 export default function InspectPage() {
   const { id: corpusId } = useParams<{ id: string }>();
@@ -147,8 +153,13 @@ export default function InspectPage() {
 
   return (
     <Stack gap="md">
-      <Group justify="space-between">
-        <Title order={2}>Query inspector</Title>
+      <Group justify="space-between" align="flex-start">
+        <Stack gap={4}>
+          <Title order={2}>Query inspector</Title>
+          <Text size="sm" c="dimmed">
+            Test one question through the full RAG pipeline before launching a comparison run.
+          </Text>
+        </Stack>
         <Button component={Link} to={`/corpus/${corpusId}`} variant="subtle">
           Back to corpus
         </Button>
@@ -156,11 +167,16 @@ export default function InspectPage() {
 
       <Card withBorder>
         <Stack gap="sm">
-          <TextInput label="Query" value={query} onChange={(e) => setQuery(e.currentTarget.value)} />
+          <TextInput
+            label="Question"
+            placeholder="What does the document say about…?"
+            value={query}
+            onChange={(e) => setQuery(e.currentTarget.value)}
+          />
           <Grid>
             <Grid.Col span={4}>
               <Select
-                label="Embedding"
+                label="Embedding model"
                 searchable
                 data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
                 value={emb}
@@ -169,7 +185,7 @@ export default function InspectPage() {
             </Grid.Col>
             <Grid.Col span={4}>
               <Select
-                label="Generation"
+                label="Generation model"
                 searchable
                 data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
                 value={gen}
@@ -177,11 +193,16 @@ export default function InspectPage() {
               />
             </Grid.Col>
             <Grid.Col span={4}>
-              <Checkbox mt={28} label="Use rerank" checked={useRerank} onChange={(e) => setUseRerank(e.currentTarget.checked)} />
+              <Checkbox
+                mt={28}
+                label="Use reranking"
+                checked={useRerank}
+                onChange={(e) => setUseRerank(e.currentTarget.checked)}
+              />
               {useRerank && (
                 <Select
                   mt="xs"
-                  label="Rerank"
+                  label="Rerank model"
                   searchable
                   data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
                   value={rer}
@@ -191,14 +212,22 @@ export default function InspectPage() {
             </Grid.Col>
           </Grid>
           <Group grow>
-            <NumberInput label="Retrieve K" value={retrieveK} onChange={(v) => setRetrieveK(Number(v))} />
-            <NumberInput label="Final K" value={finalK} onChange={(v) => setFinalK(Number(v))} />
+            <NumberInput
+              label="Chunks to retrieve"
+              value={retrieveK}
+              onChange={(v) => setRetrieveK(Number(v))}
+            />
+            <NumberInput
+              label="Chunks after rerank"
+              value={finalK}
+              onChange={(v) => setFinalK(Number(v))}
+            />
           </Group>
           <Button onClick={runInspect} loading={running} disabled={!query || !emb || !gen}>
             Run pipeline
           </Button>
           {pipelineError && (
-            <Alert color="red" title="Pipeline error">
+            <Alert color="red" title="Pipeline failed">
               {pipelineError}
             </Alert>
           )}
@@ -206,7 +235,7 @@ export default function InspectPage() {
       </Card>
 
       <Group grow align="stretch" wrap="nowrap">
-        {STAGES.map((name, i) => {
+        {(["embed", "retrieve", "rerank", "generate", "judge"] as const).map((name, i) => {
           const done = stageMap.get(name);
           const active = activeStage === name;
           const selected = selectedStage === name;
@@ -226,7 +255,7 @@ export default function InspectPage() {
               }}
             >
               <Text fw={600} size="sm">
-                {i + 1}. {name}
+                {i + 1}. {STAGE_LABEL[name] ?? name}
               </Text>
               {active && (
                 <Badge size="xs" variant="light">
@@ -282,7 +311,9 @@ export default function InspectPage() {
               onChunkHover={setHighlightChunkId}
             />
           )}
-          {!selectedStage && <Text c="dimmed">Run a query to inspect each stage.</Text>}
+          {!selectedStage && (
+            <Text c="dimmed">Enter a question and run the pipeline to inspect each stage.</Text>
+          )}
         </ScrollArea>
       </Card>
     </Stack>

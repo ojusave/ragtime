@@ -1,5 +1,6 @@
 import { Box, Text, Tooltip } from "@mantine/core";
 import { Fragment, memo, useMemo } from "react";
+import { TRIAL_STATUS_LABEL } from "../lib/copy";
 
 type Cell = {
   trialId: string;
@@ -50,7 +51,7 @@ const GridCell = memo(function GridCell({
       }}
       title={
         cell
-          ? `${cell.status}${cell.overallScore ? ` (${Number(cell.overallScore).toFixed(1)})` : ""}${cell.attempts > 1 ? ` attempts: ${cell.attempts}` : ""}`
+          ? `${TRIAL_STATUS_LABEL[cell.status] ?? cell.status}${cell.overallScore ? ` (${Number(cell.overallScore).toFixed(1)})` : ""}${cell.attempts > 1 ? ` · ${cell.attempts} attempts` : ""}`
           : ""
       }
     >

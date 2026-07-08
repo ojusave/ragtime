@@ -1,4 +1,5 @@
 import {
+  Alert,
   Badge,
   Button,
   Card,
@@ -17,6 +18,7 @@ import ActivityFeed from "../components/ActivityFeed";
 import TrialGrid from "../components/TrialGrid";
 import TrialStagesPanel from "../components/TrialStagesPanel";
 import { api } from "../lib/api";
+import { runStatusLabel } from "../lib/copy";
 import type { ComboResult, TrialStages } from "@ragtime/core";
 
 type Run = {
@@ -44,6 +46,7 @@ type GridCell = {
 };
 
 const ACTIVE = new Set(["ingesting", "running", "aggregating"]);
+const TERMINAL = new Set(["complete", "failed", "canceled", "budget_exceeded"]);
 
 export default function RunPage() {
   const { id } = useParams<{ id: string }>();
@@ -77,18 +80,26 @@ export default function RunPage() {
     enabled: Boolean(drillTrial),
   });
 
+  const complete = data?.grid.filter((g) => g.status === "complete").length ?? 0;
+  const total = data?.grid.length ?? 0;
+  const pendingOrRunning =
+    data?.grid.filter((g) => g.status === "pending" || g.status === "running").length ?? 0;
+  const allTrialsDone = total > 0 && complete === total;
+
   useEffect(() => {
-    if (data?.run.status === "complete" || data?.run.status === "budget_exceeded") {
+    const status = data?.run.status;
+    if (!status || !TERMINAL.has(status)) return;
+    if (status === "complete" && !allTrialsDone) return;
+    if (status === "complete" || status === "budget_exceeded") {
       nav(`/run/${id}/results`, { replace: true });
     }
-  }, [data?.run.status, id, nav]);
+  }, [data?.run.status, id, nav, allTrialsDone]);
 
-  if (!data) return <Text>Loading...</Text>;
+  if (!data) return <Text c="dimmed">Loading run…</Text>;
 
   const { run, comboResults, grid, questions: questionRows = [], phases } = data;
-  const complete = grid.filter((g) => g.status === "complete").length;
-  const total = grid.length;
   const pct = total ? (complete / total) * 100 : 0;
+  const incompleteRun = run.status === "complete" && !allTrialsDone;
 
   const combos = comboResults.map((c) => ({
     comboId: c.comboId,
@@ -107,11 +118,13 @@ export default function RunPage() {
       <Group justify="space-between">
         <div>
           <Title order={2}>{run.name}</Title>
-          <Badge>{run.status}</Badge>
+          <Badge color={run.status === "failed" ? "red" : undefined}>
+            {runStatusLabel(run.status)}
+          </Badge>
         </div>
         <Group>
           <Button variant="outline" component={Link} to={`/run/${id}/results`}>
-            Results
+            View results
           </Button>
           {ACTIVE.has(run.status) && (
             <Button
@@ -128,16 +141,23 @@ export default function RunPage() {
         </Group>
       </Group>
 
+      {incompleteRun && (
+        <Alert color="orange" title="Run marked complete but evaluations are still finishing">
+          {complete} of {total} evaluations finished. {pendingOrRunning} still pending or in
+          progress. Results may be incomplete until all evaluations finish.
+        </Alert>
+      )}
+
       <Text>
         Spend: ${Number(run.totalCostUsd).toFixed(2)} / ${Number(run.budgetUsd).toFixed(2)}
       </Text>
       <Progress value={pct} size="lg" />
       <Text size="sm" c="dimmed">
-        {complete} / {total} trials complete
+        {complete} / {total} evaluations complete
       </Text>
 
       <Text size="sm" c="dimmed">
-        Documents: {phases?.documents.ready ?? 0} / {phases?.documents.total ?? 0} ready
+        Documents indexed: {phases?.documents.ready ?? 0} / {phases?.documents.total ?? 0}
       </Text>
       {(phases?.embeddings ?? []).map((e) => (
         <div key={e.model}>
@@ -151,6 +171,9 @@ export default function RunPage() {
       <Grid>
         <Grid.Col span={8}>
           <Card withBorder p="md">
+            <Text size="sm" c="dimmed" mb="sm">
+              Each cell is one model stack on one question. Darker blue means higher quality score.
+            </Text>
             <TrialGrid
               combos={combos}
               questions={questions}
@@ -162,14 +185,19 @@ export default function RunPage() {
         <Grid.Col span={4}>
           <Card withBorder p="md">
             <Title order={5} mb="sm">
-              Activity feed
+              Activity
             </Title>
             <ActivityFeed runId={run.id} runStatus={run.status} />
           </Card>
         </Grid.Col>
       </Grid>
 
-      <Modal opened={Boolean(drillTrial)} onClose={() => setDrillTrial(null)} size="xl" title="Trial detail">
+      <Modal
+        opened={Boolean(drillTrial)}
+        onClose={() => setDrillTrial(null)}
+        size="xl"
+        title="Evaluation detail"
+      >
         {trialDetail && (
           <Stack gap="sm">
             <Text size="sm" c="dimmed">
@@ -178,10 +206,10 @@ export default function RunPage() {
             </Text>
             <Text fw={600}>Question</Text>
             <Text size="sm">{trialDetail.question.text}</Text>
-            <Text fw={600}>Reference</Text>
+            <Text fw={600}>Reference answer</Text>
             <Text size="sm">{trialDetail.question.referenceAnswer}</Text>
             {trialDetail.trial.overallScore && (
-              <Badge>Score {Number(trialDetail.trial.overallScore).toFixed(1)}</Badge>
+              <Badge>Quality score {Number(trialDetail.trial.overallScore).toFixed(1)}</Badge>
             )}
             <TrialStagesPanel
               stages={trialDetail.trial.stages}

@@ -6,11 +6,14 @@ import {
   Text,
   TextInput,
   Title,
+  Alert,
+  Anchor,
 } from "@mantine/core";
+import { type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
-import { renderSignupUrlWithUtms, DEPLOY_TO_RENDER_URL } from "../lib/render-links";
+import { renderSignupUrlWithUtms, GITHUB_REPO_URL, DEPLOY_TO_RENDER_URL } from "../lib/render-links";
 
 type Corpus = { id: string; name: string; description: string | null };
 
@@ -38,10 +41,13 @@ export default function HomePage() {
     <Stack gap="lg">
       <Card withBorder p="lg">
         <Stack gap="sm">
-          <Title order={2}>RAG bake-off arena</Title>
+          <Title order={2}>Compare RAG model stacks</Title>
           <Text c="dimmed">
-            Compare embedding, rerank, and generation models on your corpus.
-            Orchestrated by Render Workflows, powered by OpenRouter.
+            Run the same questions across embedding, rerank, and chat models. See quality, cost,
+            and latency in one leaderboard.
+          </Text>
+          <Text size="sm" c="dimmed">
+            Runs on Render · Models via OpenRouter
           </Text>
           <Group>
             <Button component="a" href={DEPLOY_TO_RENDER_URL} target="_blank" rel="noreferrer">
@@ -60,20 +66,32 @@ export default function HomePage() {
         </Stack>
       </Card>
 
-      <Title order={3}>Corpora</Title>
-      {isLoading && <Text>Loading...</Text>}
+      <Title order={3}>Your datasets</Title>
+      {isLoading && <Text c="dimmed">Loading datasets…</Text>}
+      {!isLoading && corpora.length === 0 && (
+        <Alert title="No datasets yet">
+          Create a corpus below, or run <CodeInline>pnpm seed</CodeInline> after deploy to load the
+          SciFact demo.
+        </Alert>
+      )}
       <Stack>
         {corpora.map((c) => (
           <Card key={c.id} withBorder component={Link} to={`/corpus/${c.id}`} style={{ textDecoration: "none" }}>
             <Text fw={600}>{c.name}</Text>
-            {c.description && <Text size="sm" c="dimmed">{c.description}</Text>}
+            {c.description && (
+              <Text size="sm" c="dimmed" lineClamp={2}>
+                {c.description}
+              </Text>
+            )}
           </Card>
         ))}
       </Stack>
 
-      <Group>
+      <Group align="flex-end">
         <TextInput
-          placeholder="New corpus name"
+          label="Name your document set"
+          description="A corpus holds documents and evaluation questions for one comparison run."
+          placeholder="e.g. Product docs Q1"
           id="corpus-name"
           style={{ flex: 1 }}
         />
@@ -87,6 +105,20 @@ export default function HomePage() {
           Create corpus
         </Button>
       </Group>
+
+      <Text size="sm" c="dimmed">
+        <Anchor href={GITHUB_REPO_URL} target="_blank" rel="noreferrer">
+          View source on GitHub
+        </Anchor>
+      </Text>
     </Stack>
+  );
+}
+
+function CodeInline({ children }: { children: ReactNode }) {
+  return (
+    <Text span ff="monospace" size="sm">
+      {children}
+    </Text>
   );
 }

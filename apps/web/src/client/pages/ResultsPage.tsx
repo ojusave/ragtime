@@ -3,6 +3,7 @@ import { ScatterChart } from "@mantine/charts";
 import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { api } from "../lib/api";
+import { runStatusLabel } from "../lib/copy";
 import type { ComboResult } from "@ragtime/core";
 
 type Run = { name: string; status: string; totalCostUsd: string; budgetUsd: string };
@@ -17,7 +18,7 @@ export default function ResultsPage() {
     enabled: Boolean(id),
   });
 
-  if (!data) return <Text>Loading...</Text>;
+  if (!data) return <Text c="dimmed">Loading results…</Text>;
 
   const chartData = data.comboResults
     .filter((c) => c.avgCostPerQuestion != null && c.avgScore != null)
@@ -29,23 +30,25 @@ export default function ResultsPage() {
 
   return (
     <Stack gap="lg">
-      <Title order={2}>{data.run.name} results</Title>
-      <Badge size="lg">{data.run.status}</Badge>
+      <Title order={2}>{data.run.name}: results</Title>
+      <Badge size="lg">{runStatusLabel(data.run.status)}</Badge>
       <Text>
         Total spend: ${Number(data.run.totalCostUsd).toFixed(2)} / $
         {Number(data.run.budgetUsd).toFixed(2)}
       </Text>
 
       <Card withBorder>
-        <Title order={4} mb="md">Leaderboard</Title>
+        <Title order={4} mb="md">
+          Model stack leaderboard
+        </Title>
         <Table striped>
           <Table.Thead>
             <Table.Tr>
-              <Table.Th>Combo</Table.Th>
+              <Table.Th>Model stack</Table.Th>
               <Table.Th>Quality</Table.Th>
-              <Table.Th>Cost / Q</Table.Th>
-              <Table.Th>P50 lat</Table.Th>
-              <Table.Th>P95 lat</Table.Th>
+              <Table.Th>Cost / question</Table.Th>
+              <Table.Th>P50 latency</Table.Th>
+              <Table.Th>P95 latency</Table.Th>
               <Table.Th>Failures</Table.Th>
             </Table.Tr>
           </Table.Thead>
@@ -56,12 +59,16 @@ export default function ResultsPage() {
                 <Table.Tr key={c.comboId}>
                   <Table.Td>
                     {c.label}
-                    {c.selfJudged && <Badge size="xs" ml={4}>self-judged</Badge>}
+                    {c.selfJudged && (
+                      <Badge size="xs" ml={4}>
+                        self-judged
+                      </Badge>
+                    )}
                   </Table.Td>
-                  <Table.Td>{c.avgScore?.toFixed(2) ?? "-"}</Table.Td>
-                  <Table.Td>${c.avgCostPerQuestion?.toFixed(4) ?? "-"}</Table.Td>
-                  <Table.Td>{c.p50GenerationLatencyMs?.toFixed(0) ?? "-"} ms</Table.Td>
-                  <Table.Td>{c.p95GenerationLatencyMs?.toFixed(0) ?? "-"} ms</Table.Td>
+                  <Table.Td>{c.avgScore?.toFixed(2) ?? "—"}</Table.Td>
+                  <Table.Td>${c.avgCostPerQuestion?.toFixed(4) ?? "—"}</Table.Td>
+                  <Table.Td>{c.p50GenerationLatencyMs?.toFixed(0) ?? "—"} ms</Table.Td>
+                  <Table.Td>{c.p95GenerationLatencyMs?.toFixed(0) ?? "—"} ms</Table.Td>
                   <Table.Td>{c.failedCount}</Table.Td>
                 </Table.Tr>
               ))}
@@ -71,7 +78,9 @@ export default function ResultsPage() {
 
       {chartData.length > 0 && (
         <Card withBorder>
-          <Title order={4} mb="md">Cost vs quality</Title>
+          <Title order={4} mb="md">
+            Cost vs quality
+          </Title>
           <ScatterChart
             h={360}
             data={chartData}
