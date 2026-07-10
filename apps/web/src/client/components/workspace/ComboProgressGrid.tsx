@@ -15,7 +15,7 @@ export default function ComboProgressGrid({ combos, grid, selectedTrialId, onSel
 
   return (
     <Stack gap="sm" className="combo-progress-grid">
-      <Text className="rag-kicker">{COPY.workspace.combos}</Text>
+      <Text className="pg-section-title">{COPY.playground.combos}</Text>
       <Table highlightOnHover withTableBorder>
         <Table.Thead>
           <Table.Tr>

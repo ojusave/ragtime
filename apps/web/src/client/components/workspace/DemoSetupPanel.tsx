@@ -9,24 +9,26 @@ type Props = {
   onRetry: () => void;
 };
 
-/** Centered first-run card while SciFact sample data loads or needs a retry. */
+/** Playground welcome screen while SciFact loads. */
 export default function DemoSetupPanel({ loading, failed, errorMessage, onRetry }: Props) {
   return (
-    <div className="workspace-setup">
-      <div className="workspace-setup-card">
+    <div className="pg-setup">
+      <div className="pg-setup-card">
         <Stack gap="lg">
           <Stack gap="xs">
-            <Text className="workspace-setup-eyebrow">RAGtime</Text>
-            <Title order={2} className="workspace-setup-title">
-              Compare RAG models side by side
+            <Group gap="sm">
+              <Text className="pg-section-title">RAGtime</Text>
+              <span className="pg-brand-badge">{COPY.playground.badge}</span>
+            </Group>
+            <Title order={2} className="pg-setup-title">
+              {COPY.playground.welcomeTitle}
             </Title>
             <Text size="sm" c="dimmed">
-              One question, many embedding, rerank, and answer models. Runs on Render Workflows with
-              live progress.
+              {COPY.playground.welcomeBody}
             </Text>
           </Stack>
 
-          <Stack gap="sm" className="workspace-setup-steps">
+          <Stack gap="sm" className="pg-setup-steps">
             {FLOW_STEPS.map((step, index) => (
               <Group key={step.label} gap="sm" wrap="nowrap" align="flex-start">
                 <span className="how-step-number">{index + 1}</span>
@@ -43,7 +45,7 @@ export default function DemoSetupPanel({ loading, failed, errorMessage, onRetry 
           </Stack>
 
           {failed ? (
-            <Alert color="red" title="Could not load sample data">
+            <Alert color="red" title="Could not open playground">
               <Stack gap="sm">
                 <Text size="sm">{errorMessage ?? COPY.common.loadFailed}</Text>
                 <Button size="sm" onClick={onRetry}>
@@ -55,19 +57,20 @@ export default function DemoSetupPanel({ loading, failed, errorMessage, onRetry 
             <Group gap="sm" wrap="wrap">
               <Button
                 size="md"
+                className="pg-launch"
                 onClick={onRetry}
                 loading={loading}
                 leftSection={loading ? <Loader size="xs" color="white" /> : undefined}
               >
-                {loading ? COPY.workspace.loadingDemo : COPY.workspace.loadDemo}
+                {loading ? COPY.playground.loadingDemo : COPY.playground.loadDemo}
               </Button>
               <Text size="xs" c="dimmed">
-                Loads the SciFact sample corpus so you can run a comparison immediately.
+                Loads the SciFact sample corpus so you can start experimenting.
               </Text>
             </Group>
           )}
 
-          <Group justify="space-between" wrap="wrap" className="workspace-setup-footer">
+          <Group justify="space-between" wrap="wrap" className="pg-setup-footer">
             <Text size="xs" c="dimmed">
               {COPY.howItWorks.footnote}
             </Text>

@@ -93,11 +93,11 @@ export default function WorkspacePage() {
 
   if (isLoading || isBootstrapping) {
     return (
-      <Center className="workspace-setup workspace-setup--loading">
+      <Center className="pg-setup">
         <Stack align="center" gap="sm">
           <Loader size="sm" />
           <Text size="sm" c="dimmed">
-            {isBootstrapping ? COPY.workspace.loadingDemo : COPY.common.loading}
+            {isBootstrapping ? COPY.playground.loadingDemo : COPY.common.loading}
           </Text>
         </Stack>
       </Center>
@@ -106,8 +106,8 @@ export default function WorkspacePage() {
 
   if (isError) {
     return (
-      <Center className="workspace-setup">
-        <Alert color="red" title="Could not load workspace" maw={480}>
+      <Center className="pg-setup">
+        <Alert color="red" title="Could not load playground" maw={480}>
           <Button size="compact-sm" variant="light" onClick={() => refetch()}>
             {COPY.common.tryAgain}
           </Button>
@@ -159,16 +159,16 @@ export default function WorkspacePage() {
 
   if (mobile) {
     return (
-      <Tabs defaultValue="inputs">
+      <Tabs defaultValue="arena">
         <Tabs.List grow>
-          <Tabs.Tab value="inputs">Inputs</Tabs.Tab>
-          <Tabs.Tab value="canvas">Live run</Tabs.Tab>
-          <Tabs.Tab value="details">Details</Tabs.Tab>
+          <Tabs.Tab value="inputs">{COPY.playground.zones.setup}</Tabs.Tab>
+          <Tabs.Tab value="arena">{COPY.playground.zones.arena}</Tabs.Tab>
+          <Tabs.Tab value="details">{COPY.playground.zones.peek}</Tabs.Tab>
         </Tabs.List>
         <Tabs.Panel value="inputs" pt="md">
           {controls}
         </Tabs.Panel>
-        <Tabs.Panel value="canvas" pt="md">
+        <Tabs.Panel value="arena" pt="md">
           {canvas}
         </Tabs.Panel>
         <Tabs.Panel value="details" pt="md">

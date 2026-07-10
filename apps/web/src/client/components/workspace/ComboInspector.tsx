@@ -31,9 +31,9 @@ export default function ComboInspector({
   if (!trial) {
     return (
       <Stack gap="sm" className="combo-inspector">
-        <Text className="rag-kicker">Details</Text>
+        <Text className="pg-section-title">{COPY.playground.zones.peek}</Text>
         <Text size="sm" c="dimmed">
-          {COPY.workspace.inspectorEmpty}
+          {COPY.playground.inspectorEmpty}
         </Text>
       </Stack>
     );
@@ -48,7 +48,7 @@ export default function ComboInspector({
   return (
     <Stack gap="md" className="combo-inspector">
       <Stack gap={4}>
-        <Text className="rag-kicker">Details</Text>
+        <Text className="pg-section-title">{COPY.playground.zones.peek}</Text>
         <Text fw={600} size="sm">
           {label}
         </Text>

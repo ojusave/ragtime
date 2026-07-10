@@ -1,9 +1,10 @@
-import { Alert, Button, Stack, Text } from "@mantine/core";
+import { Alert, Button, Stack } from "@mantine/core";
 import { COPY, runStatusLabel } from "../../lib/copy";
 import type { RunPayload } from "../../hooks/types";
 import ComboExecutionTrace from "./ComboExecutionTrace";
 import ComboProgressGrid from "./ComboProgressGrid";
 import ComboRunSummary from "./ComboRunSummary";
+import PlaygroundIdle from "./PlaygroundIdle";
 import ResultsPanel from "./ResultsPanel";
 import RunTimeline from "./RunTimeline";
 
@@ -32,23 +33,26 @@ export default function CanvasPanel({
 
   return (
     <Stack gap="md" className="canvas-panel">
-      {!runId && (
-        <Text size="sm" c="dimmed">
-          {COPY.workspace.canvasIdle}
-        </Text>
-      )}
+      {!runId && <PlaygroundIdle />}
 
       <ComboRunSummary run={run} />
 
       {run && isActive && (
-        <Button color="red" variant="outline" size="compact-sm" onClick={onCancel} loading={canceling} w="fit-content">
+        <Button
+          color="red"
+          variant="outline"
+          size="compact-sm"
+          onClick={onCancel}
+          loading={canceling}
+          w="fit-content"
+        >
           {COPY.workspace.cancel}
         </Button>
       )}
 
       {run?.run.status === "failed" && (
         <Alert color="red" title={runStatusLabel("failed")}>
-          {run.run.error ?? "The comparison did not finish."}
+          {run.run.error ?? "The playground run did not finish."}
         </Alert>
       )}
 

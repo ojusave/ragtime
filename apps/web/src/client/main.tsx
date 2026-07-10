@@ -9,7 +9,7 @@ import "@mantine/core/styles.css";
 import "@mantine/dropzone/styles.css";
 import "@mantine/notifications/styles.css";
 import "./styles.css";
-import "./shell.css";
+import "./playground.css";
 import "./workspace.css";
 import App from "./App";
 

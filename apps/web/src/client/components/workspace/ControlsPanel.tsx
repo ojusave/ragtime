@@ -2,18 +2,22 @@ import {
   Button,
   Checkbox,
   Collapse,
+  Group,
   MultiSelect,
   NumberInput,
-  Select,
+  Paper,
   Stack,
   Text,
   Textarea,
+  UnstyledButton,
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import type { ReactNode } from "react";
 import { COPY } from "../../lib/copy";
 import type { SampleQuestion } from "../../hooks/types";
 import type { useModelMatrix } from "../../hooks/useModelMatrix";
+
+const SUGGESTED_EMB = ["baai/bge-large-en-v1.5", "google/gemini-embedding-001"];
+const SUGGESTED_GEN = ["mistralai/mistral-small-24b-instruct-2501", "qwen/qwen3.5-9b"];
 
 type Matrix = ReturnType<typeof useModelMatrix>;
 
@@ -28,6 +32,14 @@ type Props = {
   running: boolean;
   canRun: boolean;
 };
+
+function shortLabel(text: string, max = 64): string {
+  return text.length > max ? `${text.slice(0, max)}…` : text;
+}
+
+function toggleModel(list: string[], id: string): string[] {
+  return list.includes(id) ? list.filter((m) => m !== id) : [...list, id];
+}
 
 export default function ControlsPanel({
   samples,
@@ -61,116 +73,187 @@ export default function ControlsPanel({
     applyStarterPreset,
   } = matrix;
 
+  const embedCatalog = catalog?.embedding ?? [];
+  const genCatalog = catalog?.chat ?? [];
+  const suggestedEmb = SUGGESTED_EMB.map((id) => embedCatalog.find((m) => m.id === id)).filter(
+    Boolean
+  ) as Array<{ id: string; name: string }>;
+  const suggestedGen = SUGGESTED_GEN.map((id) => genCatalog.find((m) => m.id === id)).filter(
+    Boolean
+  ) as Array<{ id: string; name: string }>;
+
   return (
     <Stack gap="md" className="controls-panel">
-      <Stack gap={4}>
-        <Text className="rag-kicker">Inputs</Text>
-        <Text fw={600}>{COPY.workspace.title}</Text>
-        <Text size="sm" c="dimmed">
-          {COPY.workspace.subtitle}
-        </Text>
-      </Stack>
+      <Paper className="pg-panel" p="md">
+        <Stack gap="md">
+          <Text className="pg-section-title">{COPY.playground.questionLab}</Text>
 
-      <Select
-        label={COPY.workspace.sampleLabel}
-        placeholder="Pick a sample question"
-        data={samples.map((s) => ({
-          value: s.id,
-          label: s.text.length > 72 ? `${s.text.slice(0, 72)}…` : s.text,
-        }))}
-        value={selectedSampleId}
-        onChange={onSampleChange}
-        searchable
-        clearable
-      />
+          <Stack gap="xs">
+            <Text size="xs" c="dimmed" fw={600}>
+              {COPY.playground.sampleChips}
+            </Text>
+            <Group gap="xs">
+              {samples.slice(0, 6).map((sample) => {
+                const active = selectedSampleId === sample.id;
+                return (
+                  <UnstyledButton
+                    key={sample.id}
+                    className={`pg-sample-chip${active ? " pg-sample-chip--active" : ""}`}
+                    onClick={() => {
+                      onSampleChange(sample.id);
+                      onPromptChange(sample.text);
+                    }}
+                  >
+                    {shortLabel(sample.text)}
+                  </UnstyledButton>
+                );
+              })}
+            </Group>
+          </Stack>
 
-      <Textarea
-        label={COPY.workspace.customPrompt}
-        placeholder={COPY.workspace.promptPlaceholder}
-        value={prompt}
-        onChange={(e) => onPromptChange(e.currentTarget.value)}
-        minRows={3}
-      />
-
-      <Stack gap="sm">
-        <GroupBetween label={COPY.workspace.modelsHeading} action={
-          <Button variant="light" size="compact-xs" onClick={applyStarterPreset}>
-            {COPY.workspace.starterPreset}
-          </Button>
-        } />
-        <MultiSelect
-          label={COPY.workspace.embedLabel}
-          searchable
-          data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
-          value={embModels}
-          onChange={setEmbModels}
-        />
-        <Checkbox
-          label={COPY.workspace.noRerankLabel}
-          checked={noRerank}
-          onChange={(e) => setNoRerank(e.currentTarget.checked)}
-        />
-        <MultiSelect
-          label={COPY.workspace.rerankLabel}
-          searchable
-          data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
-          value={rerModels}
-          onChange={setRerModels}
-        />
-        <MultiSelect
-          label={COPY.workspace.genLabel}
-          searchable
-          data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
-          value={genModels}
-          onChange={setGenModels}
-        />
-      </Stack>
-
-      <Button variant="subtle" size="compact-sm" onClick={toggleAdvanced} px={0}>
-        {COPY.workspace.advanced} {advancedOpen ? "▾" : "▸"}
-      </Button>
-      <Collapse in={advancedOpen}>
-        <Stack gap="sm">
-          <NumberInput
-            label={COPY.workspace.retrieveLabel}
-            value={retrieveK}
-            onChange={(v) => setRetrieveK(Number(v))}
-            min={1}
-          />
-          <NumberInput
-            label={COPY.workspace.finalKLabel}
-            value={finalK}
-            onChange={(v) => setFinalK(Number(v))}
-            min={1}
-          />
-          <NumberInput
-            label={COPY.workspace.budgetLabel}
-            value={budget}
-            onChange={setBudget}
-            min={0.1}
-            step={0.5}
+          <Textarea
+            label={COPY.playground.yourQuestion}
+            placeholder={COPY.playground.promptPlaceholder}
+            value={prompt}
+            onChange={(e) => onPromptChange(e.currentTarget.value)}
+            minRows={3}
+            autosize
           />
         </Stack>
+      </Paper>
+
+      <Paper className="pg-panel" p="md">
+        <Stack gap="md">
+          <Group justify="space-between" align="center">
+            <Text className="pg-section-title">{COPY.playground.modelMixer}</Text>
+            <Button variant="light" size="compact-xs" onClick={applyStarterPreset}>
+              {COPY.playground.starterPreset}
+            </Button>
+          </Group>
+
+          {suggestedEmb.length > 0 && (
+            <Stack gap={6}>
+              <Text size="xs" c="dimmed">
+                {COPY.playground.quickPicks} · search
+              </Text>
+              <Group gap="xs" grow preventGrowOverflow={false}>
+                {suggestedEmb.map((model) => {
+                  const active = embModels.includes(model.id);
+                  return (
+                    <UnstyledButton
+                      key={model.id}
+                      className={`pg-model-pick${active ? " pg-model-pick--active" : ""}`}
+                      onClick={() => setEmbModels(toggleModel(embModels, model.id))}
+                    >
+                      <Text size="sm" fw={active ? 600 : 500} lineClamp={1}>
+                        {model.name}
+                      </Text>
+                    </UnstyledButton>
+                  );
+                })}
+              </Group>
+            </Stack>
+          )}
+
+          <MultiSelect
+            label={COPY.playground.embedLabel}
+            searchable
+            data={embedCatalog.map((m) => ({ value: m.id, label: m.name }))}
+            value={embModels}
+            onChange={setEmbModels}
+          />
+
+          <Checkbox
+            label={COPY.playground.noRerankLabel}
+            checked={noRerank}
+            onChange={(e) => setNoRerank(e.currentTarget.checked)}
+          />
+
+          <MultiSelect
+            label={COPY.playground.rerankLabel}
+            searchable
+            data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
+            value={rerModels}
+            onChange={setRerModels}
+          />
+
+          {suggestedGen.length > 0 && (
+            <Stack gap={6}>
+              <Text size="xs" c="dimmed">
+                {COPY.playground.quickPicks} · answer
+              </Text>
+              <Group gap="xs" grow preventGrowOverflow={false}>
+                {suggestedGen.map((model) => {
+                  const active = genModels.includes(model.id);
+                  return (
+                    <UnstyledButton
+                      key={model.id}
+                      className={`pg-model-pick${active ? " pg-model-pick--active" : ""}`}
+                      onClick={() => setGenModels(toggleModel(genModels, model.id))}
+                    >
+                      <Text size="sm" fw={active ? 600 : 500} lineClamp={1}>
+                        {model.name}
+                      </Text>
+                    </UnstyledButton>
+                  );
+                })}
+              </Group>
+            </Stack>
+          )}
+
+          <MultiSelect
+            label={COPY.playground.genLabel}
+            searchable
+            data={genCatalog.map((m) => ({ value: m.id, label: m.name }))}
+            value={genModels}
+            onChange={setGenModels}
+          />
+        </Stack>
+      </Paper>
+
+      <Button variant="subtle" size="compact-sm" onClick={toggleAdvanced} px={0}>
+        {COPY.playground.advanced} {advancedOpen ? "▾" : "▸"}
+      </Button>
+      <Collapse in={advancedOpen}>
+        <Paper className="pg-panel pg-panel--dashed" p="md">
+          <Stack gap="sm">
+            <NumberInput
+              label={COPY.playground.retrieveLabel}
+              value={retrieveK}
+              onChange={(v) => setRetrieveK(Number(v))}
+              min={1}
+            />
+            <NumberInput
+              label={COPY.playground.finalKLabel}
+              value={finalK}
+              onChange={(v) => setFinalK(Number(v))}
+              min={1}
+            />
+            <NumberInput
+              label={COPY.playground.budgetLabel}
+              value={budget}
+              onChange={setBudget}
+              min={0.1}
+              step={0.5}
+            />
+          </Stack>
+        </Paper>
       </Collapse>
 
-      <Text size="sm" c={summary.overLimit ? "red" : "dimmed"}>
+      <Text size="sm" c={summary.overLimit ? "red" : "dimmed"} className="pg-matrix-hint">
         {summary.line}
       </Text>
 
-      <Button onClick={onRun} loading={running} disabled={!canRun || running} fullWidth>
-        {running ? COPY.workspace.runningButton : COPY.workspace.runButton}
+      <Button
+        className="pg-launch"
+        size="md"
+        onClick={onRun}
+        loading={running}
+        disabled={!canRun || running}
+        fullWidth
+      >
+        {running ? COPY.playground.launchRunning : COPY.playground.launchButton}
       </Button>
     </Stack>
-  );
-}
-
-function GroupBetween({ label, action }: { label: string; action: ReactNode }) {
-  return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8 }}>
-      <Text fw={600} size="sm">
-        {label}
-      </Text>
-      {action}
-    </div>
   );
 }

@@ -1,105 +1,3 @@
-.workspace-resizable {
-  min-height: calc(100vh - 160px);
-}
-
-.workspace-pane {
-  height: 100%;
-  min-height: calc(100vh - 160px);
-  background: var(--rag-surface);
-  border: 1px solid var(--rag-border);
-  border-radius: var(--mantine-radius-md);
-}
-
-.workspace-pane--controls {
-  border-right: 0;
-  border-top-right-radius: 0;
-  border-bottom-right-radius: 0;
-}
-
-.workspace-pane--canvas {
-  background:
-    linear-gradient(var(--rag-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--rag-grid) 1px, transparent 1px),
-    var(--rag-subtle);
-  background-size: 24px 24px;
-  border-radius: 0;
-}
-
-.workspace-pane--inspector {
-  border-left: 0;
-  border-top-left-radius: 0;
-  border-bottom-left-radius: 0;
-}
-
-.pane-scroll {
-  height: 100%;
-  overflow: auto;
-  padding: 1rem;
-}
-
-.resize-handle {
-  display: grid;
-  width: 10px;
-  place-items: center;
-  background: transparent;
-}
-
-.resize-handle span {
-  width: 2px;
-  height: 36px;
-  border-radius: 999px;
-  background: var(--rag-border);
-}
-
-.rag-main--workspace {
-  width: calc(100% - 32px);
-  max-width: none;
-  padding-top: 16px;
-  padding-bottom: 20px;
-}
-
-.workspace-setup {
-  display: flex;
-  min-height: calc(100vh - 148px);
-  align-items: center;
-  justify-content: center;
-  padding: 2rem 0;
-}
-
-.workspace-setup--loading {
-  min-height: calc(100vh - 148px);
-}
-
-.workspace-setup-card {
-  width: min(560px, 100%);
-  padding: 1.75rem;
-  background: var(--rag-surface);
-  border: 1px solid var(--rag-border);
-  border-radius: var(--mantine-radius-md);
-  box-shadow: 0 12px 40px rgb(15 23 42 / 0.06);
-}
-
-.workspace-setup-eyebrow {
-  color: var(--rag-muted);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.workspace-setup-title {
-  letter-spacing: -0.02em;
-}
-
-.workspace-setup-steps {
-  padding: 0.25rem 0;
-}
-
-.workspace-setup-footer {
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--rag-border);
-}
-
 .run-summary {
   background: var(--rag-surface);
   border: 1px solid var(--rag-border);
@@ -175,19 +73,6 @@
   background: var(--mantine-color-red-5);
 }
 
-.how-step-number {
-  display: grid;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  place-items: center;
-  border: 1px solid var(--rag-border);
-  border-radius: 999px;
-  color: var(--rag-muted);
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
 .canvas-panel,
 .controls-panel,
 .combo-inspector,
@@ -195,4 +80,15 @@
 .combo-progress-grid,
 .results-panel {
   width: 100%;
+}
+
+@media (max-width: 48em) {
+  .run-summary-cell {
+    border-right: 0;
+    border-bottom: 1px solid var(--rag-border);
+  }
+
+  .run-summary-cell:last-child {
+    border-bottom: 0;
+  }
 }

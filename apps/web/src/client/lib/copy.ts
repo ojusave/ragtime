@@ -1,9 +1,9 @@
 /** User-facing copy (single source of truth). */
 
 export const FLOW_STEPS = [
-  { label: "Write a question", description: "Pick a sample or type your own" },
-  { label: "Pick models", description: "Search, rerank, and answer models" },
-  { label: "Watch it run", description: "Every setup runs in parallel" },
+  { label: "Pick a question", description: "Try a sample chip or type your own" },
+  { label: "Mix models", description: "Toggle search, rerank, and answer models" },
+  { label: "Launch and watch", description: "Every combo runs in parallel on Render Workflows" },
 ] as const;
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
@@ -52,7 +52,7 @@ export function formatMatrixSummary(args: {
   const setups = args.embedCount * args.rerankCount * args.genCount;
   const testCount = setups * args.questionCount;
   const overLimit = testCount > args.maxTrials;
-  const line = `${setups} setup${setups === 1 ? "" : "s"} × ${args.questionCount} question = ${testCount} test${testCount === 1 ? "" : "s"}. Budget: $${args.budgetUsd.toFixed(2)}.`;
+  const line = `${setups} combo${setups === 1 ? "" : "s"} × ${args.questionCount} question = ${testCount} experiment${testCount === 1 ? "" : "s"}. Budget: $${args.budgetUsd.toFixed(2)}.`;
   return { line, trialCount: testCount, overLimit };
 }
 
@@ -80,55 +80,93 @@ export function friendlyError(raw: string): string {
 }
 
 export const COPY = {
-  workspace: {
-    title: "Run one question through every model setup",
-    subtitle: "Pick a prompt, choose models, and watch each combination run on Render Workflows.",
-    promptLabel: "Question",
+  playground: {
+    badge: "Playground",
+    kicker: "Mix models · Watch live · Compare results",
+    zones: { setup: "Setup", arena: "Arena", peek: "Peek" },
+    welcomeTitle: "A sandbox for RAG model combos",
+    welcomeBody:
+      "Ask one SciFact question, mix embedding and answer models, and watch every combination run in parallel.",
+    questionLab: "Question lab",
+    modelMixer: "Model mixer",
+    sampleChips: "Try a sample",
     promptPlaceholder: "What does the evidence say about…?",
-    sampleLabel: "Sample questions",
-    customPrompt: "Or write your own",
-    modelsHeading: "Models to compare",
+    yourQuestion: "Your question",
     embedLabel: "Search models",
     rerankLabel: "Rerank models",
-    noRerankLabel: "Include a run without reranking",
+    noRerankLabel: "Also run without reranking",
     genLabel: "Answer models",
-    starterPreset: "Use starter models",
-    advanced: "Advanced settings",
+    quickPicks: "Quick picks",
+    starterPreset: "Starter combo",
+    advanced: "Tweak knobs",
     retrieveLabel: "Passages to fetch",
     finalKLabel: "Passages to keep",
     budgetLabel: "Budget (USD)",
-    runButton: "Run comparison",
-    runningButton: "Running…",
-    loadDemo: "Load sample data",
-    loadingDemo: "Loading sample data…",
-    demoMissing: "Sample corpus is not loaded yet.",
-    canvasIdle: "Press Run to start. Each model setup runs in parallel.",
-    inspectorEmpty: "Click a row to see retrieved passages and the generated answer.",
-    runAgain: "Run again",
+    launchButton: "Launch playground",
+    launchRunning: "Running…",
+    loadDemo: "Open playground",
+    loadingDemo: "Setting up playground…",
+    canvasIdleTitle: "Nothing running yet",
+    canvasIdleBody:
+      "Pick models in Setup and hit Launch. Each combo gets its own row in the arena.",
+    inspectorEmpty: "Click a row in the arena to peek at passages, answers, and scores.",
+    runAgain: "Try another combo",
     cancel: "Stop run",
-    progress: (done: number, total: number) => `${done} of ${total} setups done`,
+    progress: (done: number, total: number) => `${done} of ${total} combos done`,
     spend: (spent: string, budget: string) => `$${spent} of $${budget}`,
     elapsed: (sec: number) => `${sec.toFixed(1)}s elapsed`,
-    bestScore: "Best score so far",
-    combos: "Model setups",
+    bestScore: "Best score",
+    combos: "Live combos",
+  },
+  workspace: {
+    title: "Ask one question. Try every model combo.",
+    subtitle: "Mix models on the left, watch them run in the arena, peek into any row.",
+    promptLabel: "Question",
+    promptPlaceholder: "What does the evidence say about…?",
+    sampleLabel: "Sample questions",
+    customPrompt: "Your question",
+    modelsHeading: "Model mixer",
+    embedLabel: "Search models",
+    rerankLabel: "Rerank models",
+    noRerankLabel: "Also run without reranking",
+    genLabel: "Answer models",
+    starterPreset: "Starter combo",
+    advanced: "Tweak knobs",
+    retrieveLabel: "Passages to fetch",
+    finalKLabel: "Passages to keep",
+    budgetLabel: "Budget (USD)",
+    runButton: "Launch playground",
+    runningButton: "Running…",
+    loadDemo: "Open playground",
+    loadingDemo: "Setting up playground…",
+    demoMissing: "Playground is not ready yet.",
+    canvasIdle: "Launch to start. Every combo runs in parallel.",
+    inspectorEmpty: "Click a row to peek at passages, answers, and scores.",
+    runAgain: "Try another combo",
+    cancel: "Stop run",
+    progress: (done: number, total: number) => `${done} of ${total} combos done`,
+    spend: (spent: string, budget: string) => `$${spent} of $${budget}`,
+    elapsed: (sec: number) => `${sec.toFixed(1)}s elapsed`,
+    bestScore: "Best score",
+    combos: "Live combos",
   },
   howItWorks: {
-    title: "How a comparison runs",
+    title: "How the playground works",
     steps: [
       {
-        title: "Write or pick a question",
-        body: "The same question is sent to every model setup.",
+        title: "Pick or write a question",
+        body: "The same question goes to every model combo you select.",
       },
       {
-        title: "Choose model setups",
-        body: "Pick search, rerank, and answer models. Each combination becomes one row.",
+        title: "Mix your models",
+        body: "Toggle search, rerank, and answer models. Each combination becomes one arena row.",
       },
       {
-        title: "Watch and compare",
-        body: "Render Workflows runs them in parallel. Click a row to inspect passages, answers, and scores.",
+        title: "Launch and peek",
+        body: "Render Workflows runs them in parallel. Click any row to inspect what it retrieved and answered.",
       },
     ],
-    footnote: "Your runs are private to this browser session.",
+    footnote: "Your experiments stay private to this browser session.",
   },
   results: {
     leaderboard: "Results by setup",
@@ -163,9 +201,9 @@ export const COPY = {
       `Grounded ${f} · Correct ${c} · Complete ${comp}`,
   },
   notify: {
-    comparisonStarted: "Comparison started",
-    comparisonStopped: "Comparison stopped",
-    demoLoaded: "Sample data loaded",
+    comparisonStarted: "Playground launched",
+    comparisonStopped: "Run stopped",
+    demoLoaded: "Playground ready",
   },
   common: {
     loading: "Loading…",
