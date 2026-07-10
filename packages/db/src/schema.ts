@@ -121,6 +121,7 @@ export const questions = pgTable(
     corpusId: uuid("corpus_id")
       .notNull()
       .references(() => corpora.id, { onDelete: "cascade" }),
+    sessionId: text("session_id"),
     text: text("text").notNull(),
     referenceAnswer: text("reference_answer").notNull(),
     origin: text("origin").notNull().default("manual"),
@@ -128,6 +129,7 @@ export const questions = pgTable(
   },
   (t) => [
     check("questions_origin_check", sql`${t.origin} IN ('manual', 'csv', 'generated')`),
+    index("questions_session_corpus_idx").on(t.sessionId, t.corpusId),
   ]
 );
 
@@ -138,6 +140,7 @@ export const runs = pgTable(
     corpusId: uuid("corpus_id")
       .notNull()
       .references(() => corpora.id),
+    sessionId: text("session_id"),
     name: text("name").notNull(),
     status: text("status").notNull().default("draft"),
     config: jsonb("config").$type<RunConfig>().notNull(),
@@ -155,6 +158,7 @@ export const runs = pgTable(
       "runs_status_check",
       sql`${t.status} IN ('draft', 'ingesting', 'running', 'aggregating', 'complete', 'failed', 'canceled', 'budget_exceeded')`
     ),
+    index("runs_session_id_idx").on(t.sessionId),
   ]
 );
 

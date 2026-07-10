@@ -1,68 +1,32 @@
-/** User-facing copy and vocabulary (single source of truth). */
-
-export const APP_NAME = "RAGtime";
-
-/** Canonical terms — use these everywhere in the UI. */
-export const TERMS = {
-  dataset: "dataset",
-  datasets: "datasets",
-  testQuestion: "test question",
-  testQuestions: "test questions",
-  expectedAnswer: "expected answer",
-  modelSetup: "model setup",
-  modelSetups: "model setups",
-  comparison: "comparison",
-  test: "test",
-  tests: "tests",
-  passage: "passage",
-  passages: "passages",
-  qualityScore: "quality score",
-} as const;
+/** User-facing copy (single source of truth). */
 
 export const FLOW_STEPS = [
-  { label: "Prepare", description: "Add source material and expected answers" },
-  { label: "Choose models", description: "Define the combinations to test" },
-  { label: "Compare", description: "Use the same questions for every setup" },
-  { label: "Review", description: "Choose the tradeoff that fits" },
+  { label: "Write a question", description: "Pick a sample or type your own" },
+  { label: "Pick models", description: "Search, rerank, and answer models" },
+  { label: "Watch it run", description: "Every setup runs in parallel" },
 ] as const;
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
-  ingesting: "Preparing documents",
-  running: "Running tests",
-  aggregating: "Adding up results",
+  ingesting: "Indexing documents",
+  running: "Running",
+  aggregating: "Summing up",
   complete: "Complete",
   failed: "Failed",
-  canceled: "Canceled",
-  budget_exceeded: "Stopped — budget reached",
+  canceled: "Stopped",
+  budget_exceeded: "Budget reached",
 };
 
 export function runStatusLabel(status: string): string {
   return RUN_STATUS_LABEL[status] ?? status.replace(/_/g, " ");
 }
 
-export const DOC_STATUS_LABEL: Record<string, string> = {
-  pending: "Waiting",
-  ingesting: "Indexing",
-  ready: "Ready",
-  failed: "Failed",
-};
-
 export const TEST_STATUS_LABEL: Record<string, string> = {
   pending: "Waiting",
-  running: "In progress",
+  running: "Running",
   complete: "Done",
   failed: "Failed",
   skipped: "Skipped",
-};
-
-/** @deprecated Use TEST_STATUS_LABEL */
-export const TRIAL_STATUS_LABEL = TEST_STATUS_LABEL;
-
-export const QUESTION_SOURCE_LABEL: Record<string, string> = {
-  manual: "Added by you",
-  csv: "Imported from file",
-  generated: "Auto-generated",
 };
 
 export const PIPELINE_STAGE_LABEL: Record<string, string> = {
@@ -70,7 +34,7 @@ export const PIPELINE_STAGE_LABEL: Record<string, string> = {
   retrieve: "Find passages",
   rerank: "Re-order passages",
   generate: "Write answer",
-  judge: "Rate answer",
+  judge: "Score answer",
 };
 
 export function stageLabel(stage: string): string {
@@ -88,7 +52,7 @@ export function formatMatrixSummary(args: {
   const setups = args.embedCount * args.rerankCount * args.genCount;
   const testCount = setups * args.questionCount;
   const overLimit = testCount > args.maxTrials;
-  const line = `${setups} model setup${setups === 1 ? "" : "s"} × ${args.questionCount} ${args.questionCount === 1 ? TERMS.testQuestion : TERMS.testQuestions} = ${testCount} ${testCount === 1 ? TERMS.test : TERMS.tests}. Budget: $${args.budgetUsd.toFixed(2)}. Limit: ${args.maxTrials} tests per run.`;
+  const line = `${setups} setup${setups === 1 ? "" : "s"} × ${args.questionCount} question = ${testCount} test${testCount === 1 ? "" : "s"}. Budget: $${args.budgetUsd.toFixed(2)}.`;
   return { line, trialCount: testCount, overLimit };
 }
 
@@ -101,143 +65,85 @@ export function friendlyError(raw: string): string {
     return "The database is temporarily unavailable. Wait a minute and try again.";
   }
   if (msg.includes("403") || msg.includes("forbidden") || msg.includes("RENDER_API_KEY")) {
-    return "Could not start the comparison. Check that the deployment is configured correctly.";
+    return "Could not start the run. Check that the deployment is configured correctly.";
   }
   if (msg.includes("402") || msg.includes("Insufficient credits")) {
     return "OpenRouter credits are low. Add credits at openrouter.ai/settings/credits.";
   }
   if (msg.includes("matrix would run") || msg.includes("max ")) {
-    return msg
-      .replace(/This matrix would run (\d+) trials/gi, "This comparison would run $1 tests")
-      .replace(/evaluations?/gi, "tests")
-      .replace(/trials/gi, "tests")
-      .replace(/model stack/gi, "model setup")
-      .replace(/embedding, rerank, or generation models/gi, "search, rerank, or answer models");
+    return msg.replace(/trials/gi, "tests").replace(/model stack/gi, "model setup");
   }
   if (msg.includes("Not found")) {
-    return "That item was not found. It may have been deleted.";
+    return "That run was not found. It may belong to another browser session.";
   }
   return msg;
 }
 
 export const COPY = {
-  home: {
-    title: "Compare RAG model combinations on your own corpus",
-    subtitle:
-      "OpenRouter supplies the models; Render Workflows runs every combination against one shared set of questions.",
-    datasetsHeading: "Datasets",
-    emptyDatasets:
-      "Create a dataset here. The built-in SciFact demo appears after the deployment is seeded.",
-    createLabel: "Dataset name",
-    createDescription: "A dataset is a folder of documents plus test questions you want to compare.",
-    createPlaceholder: "e.g. Product help docs",
-    createButton: "Create dataset",
-  },
-  corpus: {
-    description: "Add documents and test questions, then pick which models to compare.",
-    documentsHeading: "Documents",
-    dropzone: "Drop a .txt or .md file here",
-    dropzoneLoading: "Uploading…",
-    questionsHeading: (n: number) => `Test questions (${n})`,
-    questionLabel: "Test question",
-    questionPlaceholder: "What does the evidence say about…?",
-    expectedAnswerLabel: TERMS.expectedAnswer,
-    expectedAnswerPlaceholder: "What a good answer should say",
-    addQuestion: "Add test question",
-    configureHeading: "Set up comparison",
-    suggestedPreset: "Use quick 2×2 preset",
-    runNameLabel: "Comparison name",
-    runNameDescription: "Shown while the comparison runs and on the results page.",
+  workspace: {
+    title: "Run one question through every model setup",
+    subtitle: "Pick a prompt, choose models, and watch each combination run on Render Workflows.",
+    promptLabel: "Question",
+    promptPlaceholder: "What does the evidence say about…?",
+    sampleLabel: "Sample questions",
+    customPrompt: "Or write your own",
+    modelsHeading: "Models to compare",
     embedLabel: "Search models",
-    embedDescription: "Turn text into vectors so relevant passages can be found.",
-    noRerankLabel: "Include a run without reranking",
     rerankLabel: "Rerank models",
-    rerankDescription: "Optional: re-score passages so the best ones rise to the top.",
+    noRerankLabel: "Include a run without reranking",
     genLabel: "Answer models",
-    genDescription: "Chat models that write the final answer from retrieved passages.",
+    starterPreset: "Use starter models",
+    advanced: "Advanced settings",
     retrieveLabel: "Passages to fetch",
-    finalKLabel: "Passages to keep after rerank",
-    thresholdLabel: "Minimum rerank score (optional)",
-    budgetLabel: "Budget for this run (USD)",
-    tryOneQuestion: "Try one question first",
-    startButton: "Start comparison",
-    confirmTitle: "Start this comparison?",
-    confirmNote:
-      "OpenRouter charges apply. The comparison runs on Render and may take several minutes.",
-    emptyDocs: "No documents yet",
-    emptyDocsHint: "Upload a .txt or .md file, or paste a URL above.",
-    emptyQuestions: "No test questions yet",
-    emptyQuestionsHint: "Add a question and expected answer above, or load the SciFact demo dataset.",
-    needQuestionsTitle: "Add test questions first",
-    needQuestions: "You need at least one test question with an expected answer.",
-    tooManyTests: "Too many tests for one run",
-    tooManyTestsBody:
-      "Use fewer search, rerank, or answer models. Large comparisons can overload the database on starter plans.",
-    recentRuns: "Past comparisons",
+    finalKLabel: "Passages to keep",
+    budgetLabel: "Budget (USD)",
+    runButton: "Run comparison",
+    runningButton: "Running…",
+    loadDemo: "Load sample data",
+    loadingDemo: "Loading sample data…",
+    demoMissing: "Sample corpus is not loaded yet.",
+    canvasIdle: "Press Run to start. Each model setup runs in parallel.",
+    inspectorEmpty: "Click a row to see retrieved passages and the generated answer.",
+    runAgain: "Run again",
+    cancel: "Stop run",
+    progress: (done: number, total: number) => `${done} of ${total} setups done`,
+    spend: (spent: string, budget: string) => `$${spent} of $${budget}`,
+    elapsed: (sec: number) => `${sec.toFixed(1)}s elapsed`,
+    bestScore: "Best score so far",
+    combos: "Model setups",
   },
-  run: {
-    description: "Live progress. Click any cell to see how one model setup answered one question.",
-    viewResults: "See results",
-    cancel: "Stop comparison",
-    cancelTitle: "Stop this comparison?",
-    cancelBody: "Tests in progress will stop. Money already spent is not refunded.",
-    cancelConfirm: "Stop comparison",
-    cancelKeep: "Keep running",
-    stayOnPage: "Stay on this page (don't open results automatically)",
-    spend: (spent: string, budget: string) => `Spent: $${spent} of $${budget} budget`,
-    progress: (done: number, total: number) => `${done} of ${total} tests done`,
-    docsIndexed: (ready: number, total: number) => `Documents ready: ${ready} of ${total}`,
-    embeddings: (model: string, done: number, total: number) =>
-      `Indexing (${model.split("/").pop()}): ${done} of ${total}`,
-    incompleteTitle: "Marked complete, but some tests are still running",
-    incompleteBody: (done: number, total: number, pending: number) =>
-      `${done} of ${total} tests finished. ${pending} still waiting or in progress. Results may be incomplete.`,
-    failedTitle: "Comparison failed",
-    failedBody: "Something went wrong during the comparison. Check the service logs for details.",
-    detailTitle: "Test detail",
-    gridLegend:
-      "Each cell is one model setup on one question. Darker blue means a higher quality score.",
+  howItWorks: {
+    title: "How a comparison runs",
+    steps: [
+      {
+        title: "Write or pick a question",
+        body: "The same question is sent to every model setup.",
+      },
+      {
+        title: "Choose model setups",
+        body: "Pick search, rerank, and answer models. Each combination becomes one row.",
+      },
+      {
+        title: "Watch and compare",
+        body: "Render Workflows runs them in parallel. Click a row to inspect passages, answers, and scores.",
+      },
+    ],
+    footnote: "Your runs are private to this browser session.",
   },
   results: {
-    titleSuffix: "results",
-    description: "See where each setup lands on the quality-cost curve, with latency alongside.",
-    exportCsv: "Download CSV",
-    backToRun: "Back to live view",
-    backToDataset: "Back to dataset",
-    leaderboard: "Results by model setup",
+    leaderboard: "Results by setup",
     chartTitle: "Cost vs quality",
-    empty: "No results yet",
-    emptyHint: "Tests may still be running. Check the live comparison page.",
-    failedTitle: "Comparison did not finish",
-    failedBody: "Some results may be missing. Open the live view for details.",
-    selfJudgedTooltip: "The same model scored its own answer. Treat scores as approximate.",
-    selfJudgedBadge: "self-scored",
+    exportCsv: "Download CSV",
     columns: {
-      setup: "Model setup",
+      setup: "Setup",
       quality: "Quality",
-      cost: "Cost per question",
+      cost: "Cost",
       p50: "Typical speed",
       p95: "Slowest 5%",
-      failures: "Failed tests",
+      failures: "Failed",
     },
-  },
-  inspect: {
-    title: "Try one question",
-    description: "Walk through each step on a single question before running a full comparison.",
-    runButton: "Run test",
-    useRerankLabel: "Use reranking",
-    failedTitle: "Test failed",
-    emptyHint: "Enter a question and run the test to inspect each step.",
-    queryEmbedding: "Prepared for search",
-    dimensions: (n: number) => `${n} dimensions`,
-  },
-  history: {
-    empty: "No comparisons yet",
-    emptyHint: "Pick models below and start your first comparison.",
-    open: "Open",
-    results: "Results",
-    started: "Started",
-    spend: "Spent",
+    selfJudgedTooltip: "The answer model scored its own output. Treat scores as approximate.",
+    selfJudgedBadge: "self-scored",
   },
   grid: {
     legendPending: "Waiting",
@@ -248,29 +154,27 @@ export const COPY = {
   stages: {
     findPassages: (n: number) => `Find passages (${n} found)`,
     rerank: "Re-order passages",
-    kept: (n: number) => `Keeping ${n} ${n === 1 ? TERMS.passage : TERMS.passages}`,
+    kept: (n: number) => `Keeping ${n} passage${n === 1 ? "" : "s"}`,
     writeAnswer: "Write answer",
-    rateAnswer: (model: string) => `Rate answer (${model})`,
+    rateAnswer: (model: string) => `Score answer (${model})`,
     costLatency: "Time and cost",
     passageLabel: (idx: number) => `Passage ${idx}`,
     scores: (f: number, c: number, comp: number) =>
-      `Grounded in sources ${f} · Correct ${c} · Complete ${comp}`,
+      `Grounded ${f} · Correct ${c} · Complete ${comp}`,
   },
   notify: {
-    docUploaded: "Document uploaded",
-    urlAdded: "Link added",
-    questionAdded: "Test question added",
     comparisonStarted: "Comparison started",
     comparisonStopped: "Comparison stopped",
-    datasetCreated: "Dataset created",
+    demoLoaded: "Sample data loaded",
   },
   common: {
     loading: "Loading…",
     tryAgain: "Try again",
+    cancel: "Cancel",
+    confirm: "Confirm",
+    close: "Close",
     notFound: "Not found",
     notFoundBody: "This page does not exist or was removed.",
     loadFailed: "Could not load data",
-    cancel: "Cancel",
-    confirm: "Confirm",
   },
 } as const;

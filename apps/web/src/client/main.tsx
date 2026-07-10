@@ -10,6 +10,7 @@ import "@mantine/dropzone/styles.css";
 import "@mantine/notifications/styles.css";
 import "./styles.css";
 import "./shell.css";
+import "./workspace.css";
 import App from "./App";
 
 const theme = createTheme({

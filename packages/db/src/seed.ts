@@ -4,7 +4,7 @@ import { corpora, documents, questions } from "./schema.js";
 import { migrate } from "./migrate.js";
 import { SEED_CORPORA, type SeedCorpus } from "./datasets/index.js";
 
-async function seedCorpus(db: ReturnType<typeof getDb>, bundle: SeedCorpus): Promise<string> {
+export async function seedCorpus(db: ReturnType<typeof getDb>, bundle: SeedCorpus): Promise<string> {
   let corpus = await db.query.corpora.findFirst({
     where: eq(corpora.name, bundle.corpusName),
   });

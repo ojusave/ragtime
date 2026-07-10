@@ -134,6 +134,19 @@ export async function migrate(): Promise<void> {
   `);
 
   await db.execute(sql`
+    ALTER TABLE questions ADD COLUMN IF NOT EXISTS session_id text
+  `);
+  await db.execute(sql`
+    ALTER TABLE runs ADD COLUMN IF NOT EXISTS session_id text
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS questions_session_corpus_idx ON questions (session_id, corpus_id)
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS runs_session_id_idx ON runs (session_id)
+  `);
+
+  await db.execute(sql`
     CREATE OR REPLACE VIEW combo_results AS
     SELECT
       c.id AS combo_id,
