@@ -282,8 +282,215 @@
   background-image:
     linear-gradient(var(--rag-grid) 1px, transparent 1px),
     linear-gradient(90deg, var(--rag-grid) 1px, transparent 1px);
-  background-size: 24px 24px;
+  background-size: 32px 32px;
   border-radius: 0;
+}
+
+.pg-arena-card {
+  padding: 0.9rem 1rem;
+  background: var(--rag-surface);
+  border: 1px solid var(--rag-border);
+  border-radius: var(--mantine-radius-md);
+  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+}
+
+.pg-arena-card--subtle {
+  background: color-mix(in srgb, var(--rag-surface) 92%, var(--rag-page));
+}
+
+.arena-combo-row {
+  display: block;
+  width: 100%;
+  padding: 0.7rem 0.75rem;
+  border: 1px solid var(--rag-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--rag-subtle);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.arena-combo-row:hover:not(:disabled) {
+  border-color: var(--pg-accent-border);
+  background: var(--rag-surface);
+}
+
+.arena-combo-row--selected {
+  border-color: var(--pg-accent);
+  background: var(--pg-accent-soft);
+  box-shadow: 0 0 0 1px var(--pg-accent-border);
+}
+
+.arena-combo-row:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.arena-model-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border: 1px solid var(--rag-border);
+  border-radius: 999px;
+  background: var(--rag-surface);
+  font-size: 0.72rem;
+  line-height: 1.3;
+}
+
+.arena-model-pill--muted {
+  opacity: 0.65;
+}
+
+.arena-model-pill__role {
+  color: var(--rag-muted);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.arena-model-pill__name {
+  font-weight: 600;
+}
+
+.arena-combo-track {
+  width: min(320px, 100%);
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--rag-border);
+}
+
+.arena-combo-bar {
+  height: 100%;
+  min-width: 0;
+  border-radius: 999px;
+  transition: width 300ms ease;
+}
+
+.arena-combo-bar--pending {
+  width: 0 !important;
+}
+
+.arena-combo-bar--running {
+  background: linear-gradient(90deg, var(--mantine-color-indigo-4), var(--mantine-color-indigo-6));
+  animation: arena-pulse 1.4s ease-in-out infinite;
+}
+
+.arena-combo-bar--complete {
+  background: var(--mantine-color-green-5);
+}
+
+.arena-combo-bar--failed {
+  background: var(--mantine-color-red-5);
+}
+
+@keyframes arena-pulse {
+  0%,
+  100% {
+    opacity: 0.75;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.arena-combo-meta {
+  flex-shrink: 0;
+  min-width: 72px;
+}
+
+.arena-combo-score {
+  min-width: 2.5rem;
+  text-align: right;
+}
+
+.arena-status-dot {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-4);
+}
+
+.arena-status-dot--running {
+  background: var(--mantine-color-indigo-5);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-color-indigo-3) 45%, transparent);
+}
+
+.arena-status-dot--complete {
+  background: var(--mantine-color-green-6);
+}
+
+.arena-status-dot--failed {
+  background: var(--mantine-color-red-6);
+}
+
+.arena-legend {
+  padding-top: 0.25rem;
+}
+
+.arena-feed-toggle {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  color: inherit;
+}
+
+.arena-feed-row {
+  display: grid;
+  grid-template-columns: 10px minmax(0, 1fr);
+  gap: 10px;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--rag-border);
+}
+
+.arena-feed-row:last-child {
+  border-bottom: 0;
+}
+
+.arena-feed-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--mantine-color-gray-4);
+}
+
+.arena-feed-row--active .arena-feed-dot {
+  background: var(--mantine-color-indigo-5);
+}
+
+.arena-feed-row--done .arena-feed-dot {
+  background: var(--mantine-color-green-6);
+}
+
+.arena-feed-row--failed .arena-feed-dot {
+  background: var(--mantine-color-red-6);
+}
+
+.arena-feed-copy {
+  min-width: 0;
+}
+
+@media (max-width: 48em) {
+  .arena-combo-track {
+    width: 100%;
+  }
+
+  .arena-combo-meta {
+    min-width: 64px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .arena-combo-bar--running {
+    animation: none;
+  }
 }
 
 .workspace-pane--inspector {

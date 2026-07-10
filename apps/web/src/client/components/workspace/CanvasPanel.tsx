@@ -1,8 +1,7 @@
 import { Alert, Button, Stack } from "@mantine/core";
 import { COPY, runStatusLabel } from "../../lib/copy";
 import type { RunPayload } from "../../hooks/types";
-import ComboExecutionTrace from "./ComboExecutionTrace";
-import ComboProgressGrid from "./ComboProgressGrid";
+import ComboArenaList from "./ComboArenaList";
 import ComboRunSummary from "./ComboRunSummary";
 import PlaygroundIdle from "./PlaygroundIdle";
 import ResultsPanel from "./ResultsPanel";
@@ -35,36 +34,36 @@ export default function CanvasPanel({
     <Stack gap="md" className="canvas-panel">
       {!runId && <PlaygroundIdle />}
 
-      <ComboRunSummary run={run} />
-
-      {run && isActive && (
-        <Button
-          color="red"
-          variant="outline"
-          size="compact-sm"
-          onClick={onCancel}
-          loading={canceling}
-          w="fit-content"
-        >
-          {COPY.workspace.cancel}
-        </Button>
-      )}
-
-      {run?.run.status === "failed" && (
-        <Alert color="red" title={runStatusLabel("failed")}>
-          {run.run.error ?? "The playground run did not finish."}
-        </Alert>
-      )}
-
       {run && (
         <>
-          <ComboProgressGrid
+          <ComboRunSummary run={run} />
+
+          {isActive && (
+            <Button
+              color="red"
+              variant="subtle"
+              size="compact-sm"
+              onClick={onCancel}
+              loading={canceling}
+              w="fit-content"
+            >
+              {COPY.workspace.cancel}
+            </Button>
+          )}
+
+          {run.run.status === "failed" && (
+            <Alert color="red" title={runStatusLabel("failed")}>
+              {run.run.error ?? "The playground run did not finish."}
+            </Alert>
+          )}
+
+          <ComboArenaList
             combos={run.comboResults}
             grid={run.grid}
             selectedTrialId={selectedTrialId}
             onSelect={onSelectTrial}
           />
-          <ComboExecutionTrace combos={run.comboResults} grid={run.grid} />
+
           <RunTimeline runId={runId} runStatus={run.run.status} />
         </>
       )}

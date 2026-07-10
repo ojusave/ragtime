@@ -1,4 +1,5 @@
-import { ScrollArea, Stack, Text, Timeline } from "@mantine/core";
+import { Collapse, Stack, Text, UnstyledButton } from "@mantine/core";
+import { useDisclosure } from "@mantine/hooks";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
@@ -13,11 +14,11 @@ type EventRow = {
 
 const TERMINAL = new Set(["complete", "failed", "canceled", "budget_exceeded"]);
 
-function eventColor(type: string): string {
-  if (type.includes("failed") || type === "budget.tripped") return "red";
-  if (type.includes("complete") || type === "trial.stage") return "green";
-  if (type.includes("running") || type === "doc.ingested") return "indigo";
-  return "gray";
+function eventTone(type: string): string {
+  if (type.includes("failed") || type === "budget.tripped") return "failed";
+  if (type.includes("complete") || type === "trial.stage") return "done";
+  if (type.includes("running") || type === "doc.ingested" || type === "embed.batch") return "active";
+  return "idle";
 }
 
 function formatTime(iso: string): string {
@@ -32,6 +33,18 @@ function formatTime(iso: string): string {
   }
 }
 
+function dedupeFeed(
+  events: Array<{ id: number; time: string; text: string; tone: string }>
+) {
+  const out: typeof events = [];
+  for (const line of events) {
+    const prev = out[out.length - 1];
+    if (prev && prev.text === line.text && prev.time === line.time) continue;
+    out.push(line);
+  }
+  return out;
+}
+
 export default function RunTimeline({
   runId,
   runStatus,
@@ -39,6 +52,7 @@ export default function RunTimeline({
   runId: string | null;
   runStatus: string;
 }) {
+  const [open, { toggle }] = useDisclosure(true);
   const [cursor, setCursor] = useState(0);
   const [events, setEvents] = useState<EventRow[]>([]);
 
@@ -57,21 +71,28 @@ export default function RunTimeline({
     refetchInterval: TERMINAL.has(runStatus) ? false : 2000,
   });
 
-  const lines = useMemo(
-    () =>
-      [...events].reverse().map((e) => ({
+  const lines = useMemo(() => {
+    const mapped = [...events]
+      .reverse()
+      .map((e) => ({
         id: e.id,
         time: formatTime(e.at),
         text: formatActivityLine(e),
-        color: eventColor(e.type),
-      })),
-    [events]
-  );
+        tone: eventTone(e.type),
+      }));
+    return dedupeFeed(mapped).slice(0, 12);
+  }, [events]);
 
   return (
-    <Stack gap="sm" className="run-timeline">
-      <Text className="rag-kicker">Event log</Text>
-      <ScrollArea.Autosize mah={280} type="auto">
+    <Stack gap="sm" className="run-timeline pg-arena-card pg-arena-card--subtle">
+      <UnstyledButton className="arena-feed-toggle" onClick={toggle}>
+        <Text className="pg-section-title">Activity</Text>
+        <Text size="xs" c="dimmed">
+          {open ? "Hide" : "Show"} ({lines.length})
+        </Text>
+      </UnstyledButton>
+
+      <Collapse in={open}>
         {!runId ? (
           <Text size="sm" c="dimmed">
             No run yet.
@@ -81,17 +102,23 @@ export default function RunTimeline({
             Waiting for updates…
           </Text>
         ) : (
-          <Timeline active={lines.length} bulletSize={16} lineWidth={2}>
+          <Stack gap={6} className="arena-feed">
             {lines.map((line) => (
-              <Timeline.Item key={line.id} title={line.text} color={line.color}>
-                <Text size="xs" c="dimmed">
-                  {line.time}
-                </Text>
-              </Timeline.Item>
+              <div key={line.id} className={`arena-feed-row arena-feed-row--${line.tone}`}>
+                <span className="arena-feed-dot" aria-hidden="true" />
+                <Stack gap={2} className="arena-feed-copy">
+                  <Text size="sm" fw={500} lh={1.35}>
+                    {line.text}
+                  </Text>
+                  <Text size="xs" c="dimmed" ff="monospace">
+                    {line.time}
+                  </Text>
+                </Stack>
+              </div>
             ))}
-          </Timeline>
+          </Stack>
         )}
-      </ScrollArea.Autosize>
+      </Collapse>
     </Stack>
   );
 }

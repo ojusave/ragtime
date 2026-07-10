@@ -30,8 +30,11 @@ export function formatActivityLine(e: EventRow): string {
       return "Stopped — budget limit reached";
     case "run.status":
       return `Status: ${humanRunStatus(String(p.status ?? ""))}`;
-    case "doc.ingested":
-      return `Document indexed (${p.chunkCount} passages)`;
+    case "doc.ingested": {
+      const count = Number(p.chunkCount ?? 1);
+      const noun = count === 1 ? "passage" : "passages";
+      return `Document indexed (${count} ${noun})`;
+    }
     default:
       return "Update";
   }
