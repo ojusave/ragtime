@@ -22,7 +22,7 @@ export default function ResizableWorkspace({
   inspector: ReactNode;
 }) {
   return (
-    <Group orientation="horizontal" className="workspace-resizable">
+    <Group orientation="horizontal" className="workspace-resizable" style={{ height: "100%" }}>
       <Panel
         id="controls"
         defaultSize="24%"

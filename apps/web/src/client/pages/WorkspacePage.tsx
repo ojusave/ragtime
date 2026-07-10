@@ -159,24 +159,30 @@ export default function WorkspacePage() {
 
   if (mobile) {
     return (
-      <Tabs defaultValue="arena" className="mobile-panes">
-        <Tabs.List grow>
-          <Tabs.Tab value="inputs">{COPY.app.zones.inputs}</Tabs.Tab>
-          <Tabs.Tab value="arena">{COPY.app.zones.run}</Tabs.Tab>
-          <Tabs.Tab value="details">{COPY.app.zones.detail}</Tabs.Tab>
-        </Tabs.List>
-        <Tabs.Panel value="inputs" className="mobile-pane">
-          {controls}
-        </Tabs.Panel>
-        <Tabs.Panel value="arena" className="mobile-pane">
-          {canvas}
-        </Tabs.Panel>
-        <Tabs.Panel value="details" className="mobile-pane">
-          {inspector}
-        </Tabs.Panel>
-      </Tabs>
+      <div className="workspace-page">
+        <Tabs defaultValue="arena" className="mobile-panes">
+          <Tabs.List grow>
+            <Tabs.Tab value="inputs">{COPY.app.zones.inputs}</Tabs.Tab>
+            <Tabs.Tab value="arena">{COPY.app.zones.run}</Tabs.Tab>
+            <Tabs.Tab value="details">{COPY.app.zones.detail}</Tabs.Tab>
+          </Tabs.List>
+          <Tabs.Panel value="inputs" className="mobile-pane">
+            {controls}
+          </Tabs.Panel>
+          <Tabs.Panel value="arena" className="mobile-pane">
+            {canvas}
+          </Tabs.Panel>
+          <Tabs.Panel value="details" className="mobile-pane">
+            {inspector}
+          </Tabs.Panel>
+        </Tabs>
+      </div>
     );
   }
 
-  return <ResizableWorkspace controls={controls} canvas={canvas} inspector={inspector} />;
+  return (
+    <div className="workspace-page">
+      <ResizableWorkspace controls={controls} canvas={canvas} inspector={inspector} />
+    </div>
+  );
 }
