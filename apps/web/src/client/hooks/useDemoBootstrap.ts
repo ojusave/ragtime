@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { COPY } from "../lib/copy";
@@ -19,7 +20,11 @@ export function useDemoBootstrap() {
   });
 
   const seed = useMutation({
-    mutationFn: () => api<{ corpusId: string; name: string }>("/api/seed-demo", { method: "POST" }),
+    mutationFn: () =>
+      api<{ corpusId: string; name: string }>("/api/seed-demo", {
+        method: "POST",
+        body: JSON.stringify({}),
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["demo"] });
       qc.invalidateQueries({ queryKey: ["samples"] });
@@ -29,14 +34,25 @@ export function useDemoBootstrap() {
       notifyError("Could not load sample data", e instanceof Error ? e.message : undefined),
   });
 
+  const needsSeed = Boolean(demo.data && !demo.data.ready);
+
+  useEffect(() => {
+    if (needsSeed && !seed.isPending && !seed.isSuccess && !seed.isError) {
+      seed.mutate();
+    }
+  }, [needsSeed, seed.isPending, seed.isSuccess, seed.isError, seed.mutate]);
+
   return {
     demo: demo.data,
     samples: samples.data ?? [],
-    isLoading: demo.isLoading || seed.isPending,
+    isLoading: demo.isLoading,
+    isBootstrapping: needsSeed && seed.isPending,
     isError: demo.isError,
     error: demo.error,
     refetch: demo.refetch,
     seedDemo: seed.mutate,
     seeding: seed.isPending,
+    seedFailed: seed.isError,
+    seedError: seed.error instanceof Error ? seed.error.message : undefined,
   };
 }

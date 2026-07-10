@@ -52,8 +52,52 @@
 }
 
 .rag-main--workspace {
-  padding-top: 20px;
-  padding-bottom: 28px;
+  width: calc(100% - 32px);
+  max-width: none;
+  padding-top: 16px;
+  padding-bottom: 20px;
+}
+
+.workspace-setup {
+  display: flex;
+  min-height: calc(100vh - 148px);
+  align-items: center;
+  justify-content: center;
+  padding: 2rem 0;
+}
+
+.workspace-setup--loading {
+  min-height: calc(100vh - 148px);
+}
+
+.workspace-setup-card {
+  width: min(560px, 100%);
+  padding: 1.75rem;
+  background: var(--rag-surface);
+  border: 1px solid var(--rag-border);
+  border-radius: var(--mantine-radius-md);
+  box-shadow: 0 12px 40px rgb(15 23 42 / 0.06);
+}
+
+.workspace-setup-eyebrow {
+  color: var(--rag-muted);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.workspace-setup-title {
+  letter-spacing: -0.02em;
+}
+
+.workspace-setup-steps {
+  padding: 0.25rem 0;
+}
+
+.workspace-setup-footer {
+  padding-top: 0.5rem;
+  border-top: 1px solid var(--rag-border);
 }
 
 .run-summary {

@@ -17,7 +17,7 @@ export default function App() {
         <Group h="100%" justify="space-between" wrap="nowrap" className="rag-nav">
           <Anchor component={Link} to="/" className="rag-brand">
             <span className="rag-brand-mark">
-              <img src="https://render.com/favicon.ico" alt="" width="18" height="18" />
+              <img src="/favicon.svg" alt="" width="18" height="18" />
             </span>
             <Box className="rag-brand-copy">
               <Text className="rag-brand-name">RAGtime</Text>

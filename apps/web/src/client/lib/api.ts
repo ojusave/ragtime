@@ -2,11 +2,17 @@ import { friendlyError } from "./copy.js";
 
 const BASE = "";
 
+function jsonHeaders(init?: RequestInit): Record<string, string> {
+  if (init?.body instanceof FormData) return {};
+  if (init?.body == null || init.body === "") return {};
+  return { "Content-Type": "application/json" };
+}
+
 export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
     ...init,
     headers: {
-      ...(init?.body instanceof FormData ? {} : { "Content-Type": "application/json" }),
+      ...jsonHeaders(init),
       ...init?.headers,
     },
   });

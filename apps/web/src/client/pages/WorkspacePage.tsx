@@ -1,4 +1,4 @@
-import { Alert, Button, Stack, Tabs, Text } from "@mantine/core";
+import { Alert, Button, Center, Loader, Stack, Tabs, Text } from "@mantine/core";
 import { useMediaQuery } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
@@ -9,11 +9,23 @@ import { useWorkspaceRun } from "../hooks/useWorkspaceRun";
 import CanvasPanel from "../components/workspace/CanvasPanel";
 import ComboInspector from "../components/workspace/ComboInspector";
 import ControlsPanel from "../components/workspace/ControlsPanel";
+import DemoSetupPanel from "../components/workspace/DemoSetupPanel";
 import ResizableWorkspace from "../components/workspace/ResizableWorkspace";
 
 export default function WorkspacePage() {
   const mobile = useMediaQuery("(max-width: 70em)");
-  const { demo, samples, isLoading, seedDemo, seeding, isError, refetch } = useDemoBootstrap();
+  const {
+    demo,
+    samples,
+    isLoading,
+    isBootstrapping,
+    seedDemo,
+    seeding,
+    seedFailed,
+    seedError,
+    isError,
+    refetch,
+  } = useDemoBootstrap();
   const matrix = useModelMatrix(1);
   const workspace = useWorkspaceRun();
 
@@ -79,35 +91,39 @@ export default function WorkspacePage() {
     });
   }
 
-  if (isLoading) {
+  if (isLoading || isBootstrapping) {
     return (
-      <Text size="sm" c="dimmed" py="xl">
-        {COPY.common.loading}
-      </Text>
+      <Center className="workspace-setup workspace-setup--loading">
+        <Stack align="center" gap="sm">
+          <Loader size="sm" />
+          <Text size="sm" c="dimmed">
+            {isBootstrapping ? COPY.workspace.loadingDemo : COPY.common.loading}
+          </Text>
+        </Stack>
+      </Center>
     );
   }
 
   if (isError) {
     return (
-      <Alert color="red" title="Could not load workspace">
-        <Button size="compact-sm" variant="light" onClick={() => refetch()}>
-          {COPY.common.tryAgain}
-        </Button>
-      </Alert>
+      <Center className="workspace-setup">
+        <Alert color="red" title="Could not load workspace" maw={480}>
+          <Button size="compact-sm" variant="light" onClick={() => refetch()}>
+            {COPY.common.tryAgain}
+          </Button>
+        </Alert>
+      </Center>
     );
   }
 
   if (!demo?.ready || !demo.corpusId) {
     return (
-      <Stack gap="md" maw={480} py="xl">
-        <Text fw={600}>{COPY.workspace.demoMissing}</Text>
-        <Text size="sm" c="dimmed">
-          Load the SciFact sample corpus to try the comparison demo.
-        </Text>
-        <Button onClick={() => seedDemo()} loading={seeding}>
-          {seeding ? COPY.workspace.loadingDemo : COPY.workspace.loadDemo}
-        </Button>
-      </Stack>
+      <DemoSetupPanel
+        loading={seeding}
+        failed={seedFailed}
+        errorMessage={seedError}
+        onRetry={() => seedDemo()}
+      />
     );
   }
 
