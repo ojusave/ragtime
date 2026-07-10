@@ -59,8 +59,9 @@ export default function ResultsPage() {
         <Stack gap="md">
           <PageHeader
             title={`${data.run.name}: ${COPY.results.titleSuffix}`}
+            description={COPY.results.description}
             crumbs={[
-              { label: "Home", to: "/" },
+              { label: "Datasets", to: "/" },
               { label: "Dataset", to: `/corpus/${data.run.corpusId}` },
               { label: data.run.name, to: `/run/${id}` },
               { label: "Results" },

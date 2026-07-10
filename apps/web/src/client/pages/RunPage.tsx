@@ -3,7 +3,6 @@ import {
   Badge,
   Button,
   Card,
-  Checkbox,
   Collapse,
   Grid,
   Group,
@@ -14,7 +13,7 @@ import {
 } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
 import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import ActivityFeed from "../components/ActivityFeed";
 import PageHeader from "../components/PageHeader";
@@ -54,13 +53,11 @@ type GridCell = {
 };
 
 const ACTIVE = new Set(["ingesting", "running", "aggregating"]);
-const TERMINAL = new Set(["complete", "failed", "canceled", "budget_exceeded"]);
 
 export default function RunPage() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
   const [drillTrial, setDrillTrial] = useState<string | null>(null);
-  const [stayOnPage, setStayOnPage] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [canceling, setCanceling] = useState(false);
   const [indexingOpen, { toggle: toggleIndexing }] = useDisclosure(false);
@@ -106,16 +103,6 @@ export default function RunPage() {
         ? `Indexed for ${embeddings.length} search models`
         : `Indexing ${embeddings.filter((e) => e.done < e.total).length} of ${embeddings.length} search models`;
 
-  useEffect(() => {
-    const status = data?.run.status;
-    if (!status || stayOnPage) return;
-    if (!TERMINAL.has(status)) return;
-    if (status === "complete" && !allTrialsDone) return;
-    if (status === "complete" || status === "budget_exceeded") {
-      nav(`/run/${id}/results`, { replace: true });
-    }
-  }, [data?.run.status, id, nav, allTrialsDone, stayOnPage]);
-
   async function handleCancel() {
     if (!id) return;
     setCanceling(true);
@@ -146,8 +133,9 @@ export default function RunPage() {
         <Stack gap="md">
           <PageHeader
             title={data.run.name}
+            description={COPY.run.description}
             crumbs={[
-              { label: "Home", to: "/" },
+              { label: "Datasets", to: "/" },
               { label: "Dataset", to: `/corpus/${data.run.corpusId}` },
               { label: data.run.name },
             ]}
@@ -160,9 +148,17 @@ export default function RunPage() {
                   </Button>
                 </Group>
               ) : (
-                <Badge size="lg" color={data.run.status === "failed" ? "red" : undefined}>
-                  {runStatusLabel(data.run.status)}
-                </Badge>
+                <Group gap="sm">
+                  <Badge size="lg" color={data.run.status === "failed" ? "red" : undefined}>
+                    {runStatusLabel(data.run.status)}
+                  </Badge>
+                  {(data.run.status === "complete" ||
+                    data.run.status === "budget_exceeded") && (
+                    <Button onClick={() => nav(`/run/${id}/results`)}>
+                      {COPY.run.viewResults}
+                    </Button>
+                  )}
+                </Group>
               )
             }
           />
@@ -177,14 +173,6 @@ export default function RunPage() {
             <Alert color="orange" title={COPY.run.incompleteTitle}>
               {COPY.run.incompleteBody(complete, total, pendingOrRunning)}
             </Alert>
-          )}
-
-          {(data.run.status === "complete" || data.run.status === "budget_exceeded") && (
-            <Checkbox
-              label={COPY.run.stayOnPage}
-              checked={stayOnPage}
-              onChange={(e) => setStayOnPage(e.currentTarget.checked)}
-            />
           )}
 
           <RunSummaryBar

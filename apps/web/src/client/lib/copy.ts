@@ -20,10 +20,10 @@ export const TERMS = {
 } as const;
 
 export const FLOW_STEPS = [
-  { label: "Prepare", description: "Documents and test questions" },
-  { label: "Choose models", description: "Search, rerank, and answer models" },
-  { label: "Compare", description: "Run all tests live" },
-  { label: "Review", description: "Scores, cost, and speed" },
+  { label: "Prepare", description: "Add source material and expected answers" },
+  { label: "Choose models", description: "Define the combinations to test" },
+  { label: "Compare", description: "Use the same questions for every setup" },
+  { label: "Review", description: "Choose the tradeoff that fits" },
 ] as const;
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
@@ -122,13 +122,12 @@ export function friendlyError(raw: string): string {
 
 export const COPY = {
   home: {
-    title: "Find the RAG setup that works for your data",
+    title: "Compare RAG model combinations on your own corpus",
     subtitle:
-      "Run the same questions through different search, rerank, and answer models. Render Workflows executes every test while OpenRouter gives each setup access to the models it needs.",
-    platformNote: "Render Workflows orchestration · OpenRouter model access",
-    datasetsHeading: "Choose a dataset",
+      "OpenRouter supplies the models; Render Workflows runs every combination against one shared set of questions.",
+    datasetsHeading: "Datasets",
     emptyDatasets:
-      "Create a dataset below. After deploy, you can also load the built-in SciFact demo from the dashboard.",
+      "Create a dataset here. The built-in SciFact demo appears after the deployment is seeded.",
     createLabel: "Dataset name",
     createDescription: "A dataset is a folder of documents plus test questions you want to compare.",
     createPlaceholder: "e.g. Product help docs",
@@ -201,7 +200,7 @@ export const COPY = {
   },
   results: {
     titleSuffix: "results",
-    description: "Which model setups scored best, cost least, and responded fastest.",
+    description: "See where each setup lands on the quality-cost curve, with latency alongside.",
     exportCsv: "Download CSV",
     backToRun: "Back to live view",
     backToDataset: "Back to dataset",

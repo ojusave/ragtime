@@ -1,4 +1,4 @@
-import { Group, Progress, Text } from "@mantine/core";
+import { Box, Progress, SimpleGrid, Text } from "@mantine/core";
 import { COPY } from "../lib/copy";
 
 type Props = {
@@ -21,21 +21,32 @@ export default function RunSummaryBar({
 }: Props) {
   const pct = total ? (complete / total) * 100 : 0;
   return (
-    <Group gap="lg" wrap="wrap" align="center">
-      <Text size="sm">{COPY.run.spend(spent, budget)}</Text>
-      {total > 0 && (
-        <Group gap="xs" style={{ flex: 1, minWidth: 200 }}>
-          <Progress value={pct} size="sm" style={{ flex: 1 }} aria-label="Test progress" />
-          <Text size="xs" c="dimmed">
-            {COPY.run.progress(complete, total)}
-          </Text>
-        </Group>
-      )}
-      {docsTotal != null && docsTotal > 0 && (
-        <Text size="xs" c="dimmed">
-          {COPY.run.docsIndexed(docsReady ?? 0, docsTotal)}
+    <SimpleGrid
+      cols={{ base: 1, sm: docsTotal != null && docsTotal > 0 ? 3 : 2 }}
+      spacing={0}
+      className="run-summary"
+    >
+      <Box className="run-summary-cell">
+        <Text className="rag-kicker">Spend</Text>
+        <Text size="sm" fw={600} mt={5}>
+          ${spent} of ${budget}
         </Text>
+      </Box>
+      <Box className="run-summary-cell">
+        <Text className="rag-kicker">Test progress</Text>
+        <Text size="sm" fw={600} mt={5}>
+          {total > 0 ? COPY.run.progress(complete, total) : "Waiting to start"}
+        </Text>
+        {total > 0 && <Progress value={pct} size={5} mt={8} aria-label="Test progress" />}
+      </Box>
+      {docsTotal != null && docsTotal > 0 && (
+        <Box className="run-summary-cell">
+          <Text className="rag-kicker">Documents</Text>
+          <Text size="sm" fw={600} mt={5}>
+            {COPY.run.docsIndexed(docsReady ?? 0, docsTotal)}
+          </Text>
+        </Box>
       )}
-    </Group>
+    </SimpleGrid>
   );
 }

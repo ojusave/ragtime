@@ -9,8 +9,9 @@ type Props = {
 /** Single placement for Deploy + Sign up on Render links. */
 export default function RenderCtas({ signupContent = "navbar_button", size = "compact-sm" }: Props) {
   return (
-    <Group gap="xs" wrap="nowrap">
+    <Group gap="xs" wrap="nowrap" className="render-ctas">
       <Button
+        className="render-deploy"
         component="a"
         href={DEPLOY_TO_RENDER_URL}
         target="_blank"
@@ -21,6 +22,7 @@ export default function RenderCtas({ signupContent = "navbar_button", size = "co
         Deploy to Render
       </Button>
       <Button
+        className="render-signup"
         component="a"
         href={renderSignupUrlWithUtms(signupContent)}
         target="_blank"

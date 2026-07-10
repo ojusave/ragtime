@@ -1,5 +1,4 @@
 import {
-  Badge,
   Box,
   Button,
   Card,
@@ -15,7 +14,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate } from "react-router-dom";
 import QueryState from "../components/QueryState";
 import { api } from "../lib/api";
-import { COPY, FLOW_STEPS, friendlyError } from "../lib/copy";
+import { COPY, friendlyError } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
 
 type Corpus = { id: string; name: string; description: string | null };
@@ -57,36 +56,12 @@ export default function HomePage() {
 
   return (
     <Stack gap="xl" className="home-page">
-      <Box className="home-hero">
-        <Box className="home-hero-copy">
-          <Text className="rag-kicker">Render × OpenRouter</Text>
-          <Title order={1} className="home-title">
-            {COPY.home.title}
-          </Title>
-          <Text className="home-subtitle">{COPY.home.subtitle}</Text>
-          <Group gap="xs" mt="lg">
-            <Badge variant="light" color="indigo">
-              Render Workflows
-            </Badge>
-            <Badge variant="light" color="gray">
-              OpenRouter models
-            </Badge>
-          </Group>
-        </Box>
-      </Box>
-
-      <Box className="flow-strip" aria-label="Evaluation workflow">
-        {FLOW_STEPS.map((step, index) => (
-          <Box className="flow-step" key={step.label}>
-            <Text className="flow-number">0{index + 1}</Text>
-            <Text size="sm" fw={600} mt={4}>
-              {step.label}
-            </Text>
-            <Text size="xs" c="dimmed" mt={2}>
-              {step.description}
-            </Text>
-          </Box>
-        ))}
+      <Box className="home-intro">
+        <Text className="rag-kicker">RAG model evaluation</Text>
+        <Title order={1} className="home-title">
+          {COPY.home.title}
+        </Title>
+        <Text className="home-subtitle">{COPY.home.subtitle}</Text>
       </Box>
 
       <Box className="home-section-heading">
@@ -97,7 +72,7 @@ export default function HomePage() {
           </Title>
         </Box>
         <Text size="sm" c="dimmed">
-          Documents and test questions stay grouped for repeatable comparisons.
+          Each dataset holds the source documents and questions used in a comparison.
         </Text>
       </Box>
 
@@ -108,7 +83,7 @@ export default function HomePage() {
               <Box>
                 <Text className="rag-kicker">New dataset</Text>
                 <Text fw={600} mt={4}>
-                  Start with your own documents
+                  Create a dataset
                 </Text>
                 <Text size="sm" c="dimmed" mt={4}>
                   {COPY.home.createDescription}
@@ -154,7 +129,7 @@ export default function HomePage() {
                 </Box>
                 <Group justify="space-between">
                   <Text size="xs" c="dimmed">
-                    Open workspace
+                    Open dataset
                   </Text>
                   <span className="dataset-arrow" aria-hidden="true">
                     →

@@ -21,7 +21,7 @@ import { Dropzone } from "@mantine/dropzone";
 import { useDisclosure } from "@mantine/hooks";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams, useSearchParams } from "react-router-dom";
 import EmptyState from "../components/EmptyState";
 import PageHeader from "../components/PageHeader";
 import QueryState from "../components/QueryState";
@@ -44,6 +44,7 @@ const SUGGESTED_GEN = ["mistralai/mistral-small-24b-instruct-2501", "qwen/qwen3.
 export default function CorpusPage() {
   const { id } = useParams<{ id: string }>();
   const nav = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const qc = useQueryClient();
   const [url, setUrl] = useState("");
   const [noRerank, setNoRerank] = useState(true);
@@ -187,6 +188,9 @@ export default function CorpusPage() {
     embModels.length > 0 &&
     genModels.length > 0 &&
     !matrix.overLimit;
+  const requestedTab = searchParams.get("tab");
+  const activeTab =
+    requestedTab === "questions" || requestedTab === "compare" ? requestedTab : "documents";
 
   return (
     <QueryState
@@ -201,7 +205,7 @@ export default function CorpusPage() {
           <PageHeader
             title={data.corpus.name}
             description={`${readyDocs} documents · ${data.questions.length} test questions`}
-            crumbs={[{ label: "Home", to: "/" }, { label: data.corpus.name }]}
+            crumbs={[{ label: "Datasets", to: "/" }, { label: data.corpus.name }]}
             actions={
               <Button component={Link} to={`/corpus/${id}/inspect`} variant="light">
                 {COPY.corpus.tryOneQuestion}
@@ -209,7 +213,15 @@ export default function CorpusPage() {
             }
           />
 
-          <Tabs defaultValue="documents">
+          <Tabs
+            value={activeTab}
+            onChange={(value) => {
+              const next = new URLSearchParams(searchParams);
+              if (!value || value === "documents") next.delete("tab");
+              else next.set("tab", value);
+              setSearchParams(next, { replace: true });
+            }}
+          >
             <Tabs.List>
               <Tabs.Tab value="documents">{COPY.corpus.documentsHeading}</Tabs.Tab>
               <Tabs.Tab value="questions">

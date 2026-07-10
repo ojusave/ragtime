@@ -152,7 +152,7 @@ export default function InspectPage() {
         title={COPY.inspect.title}
         description={COPY.inspect.description}
         crumbs={[
-          { label: "Home", to: "/" },
+          { label: "Datasets", to: "/" },
           { label: "Dataset", to: `/corpus/${corpusId}` },
           { label: COPY.inspect.title },
         ]}
