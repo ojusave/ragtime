@@ -122,11 +122,11 @@ export function friendlyError(raw: string): string {
 
 export const COPY = {
   home: {
-    title: "Compare RAG setups side by side",
+    title: "Find the RAG setup that works for your data",
     subtitle:
-      "Run the same test questions through different search, rerank, and answer models. See quality, cost, and speed in one place.",
-    platformNote: "Hosted on Render · Models via OpenRouter",
-    datasetsHeading: "Your datasets",
+      "Run the same questions through different search, rerank, and answer models. Render Workflows executes every test while OpenRouter gives each setup access to the models it needs.",
+    platformNote: "Render Workflows orchestration · OpenRouter model access",
+    datasetsHeading: "Choose a dataset",
     emptyDatasets:
       "Create a dataset below. After deploy, you can also load the built-in SciFact demo from the dashboard.",
     createLabel: "Dataset name",

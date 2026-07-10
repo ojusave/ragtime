@@ -8,12 +8,22 @@ import "@mantine/charts/styles.css";
 import "@mantine/core/styles.css";
 import "@mantine/dropzone/styles.css";
 import "@mantine/notifications/styles.css";
+import "./styles.css";
 import App from "./App";
 
 const theme = createTheme({
-  primaryColor: "blue",
+  primaryColor: "indigo",
   defaultRadius: "md",
-  fontFamily: "Inter, system-ui, sans-serif",
+  fontFamily: 'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+  fontFamilyMonospace: '"JetBrains Mono", ui-monospace, SFMono-Regular, monospace',
+  headings: {
+    fontWeight: "600",
+    sizes: {
+      h1: { fontSize: "2.4rem", lineHeight: "1.08" },
+      h2: { fontSize: "1.45rem", lineHeight: "1.25" },
+      h3: { fontSize: "1.05rem", lineHeight: "1.35" },
+    },
+  },
 });
 
 const queryClient = new QueryClient({
