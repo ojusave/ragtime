@@ -93,6 +93,7 @@ export function useWorkspaceRun() {
     runId,
     run: runQuery.data,
     isLoadingRun: runQuery.isLoading,
+    runError: runQuery.isError,
     running,
     start,
     cancel,

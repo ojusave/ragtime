@@ -176,7 +176,7 @@ export default function ControlsPanel({
         {summary.line}
       </Text>
 
-      <Button size="sm" onClick={onRun} loading={running} disabled={!canRun || running} fullWidth>
+      <Button type="button" size="sm" onClick={onRun} loading={running} disabled={!canRun || running} fullWidth>
         {running ? COPY.app.runningButton : COPY.app.runButton}
       </Button>
     </Stack>

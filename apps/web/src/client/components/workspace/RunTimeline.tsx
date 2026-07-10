@@ -1,8 +1,9 @@
-import { Collapse, Stack, Text, UnstyledButton } from "@mantine/core";
+import { Collapse, Loader, Stack, Text, UnstyledButton } from "@mantine/core";
 import { useDisclosure } from "@mantine/hooks";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../../lib/api";
+import { COPY } from "../../lib/copy";
 import { formatActivityLine } from "../../lib/format-event";
 
 type EventRow = {
@@ -53,17 +54,22 @@ export default function RunTimeline({
   runStatus: string;
 }) {
   const [open, { toggle }] = useDisclosure(true);
-  const [cursor, setCursor] = useState(0);
   const [events, setEvents] = useState<EventRow[]>([]);
+  const cursorRef = useRef(0);
+
+  useEffect(() => {
+    setEvents([]);
+    cursorRef.current = 0;
+  }, [runId]);
 
   useQuery({
-    queryKey: ["run-events", runId, cursor],
+    queryKey: ["run-events", runId],
     queryFn: async () => {
       if (!runId) return [];
-      const rows = await api<EventRow[]>(`/api/runs/${runId}/events?after=${cursor}`);
+      const rows = await api<EventRow[]>(`/api/runs/${runId}/events?after=${cursorRef.current}`);
       if (rows.length > 0) {
+        cursorRef.current = rows[rows.length - 1]!.id;
         setEvents((prev) => [...prev, ...rows].slice(-500));
-        setCursor(rows[rows.length - 1]!.id);
       }
       return rows;
     },

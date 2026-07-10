@@ -1,4 +1,4 @@
-import { Alert, Button, Stack } from "@mantine/core";
+import { Alert, Button, Loader, Stack, Text } from "@mantine/core";
 import { COPY, runStatusLabel } from "../../lib/copy";
 import type { RunPayload } from "../../hooks/types";
 import ComboArenaList from "./ComboArenaList";
@@ -10,6 +10,8 @@ import RunTimeline from "./RunTimeline";
 type Props = {
   run: RunPayload | undefined;
   runId: string | null;
+  runLoading: boolean;
+  runError: boolean;
   selectedTrialId: string | null;
   onSelectTrial: (trialId: string) => void;
   onCancel: () => void;
@@ -20,6 +22,8 @@ type Props = {
 export default function CanvasPanel({
   run,
   runId,
+  runLoading,
+  runError,
   selectedTrialId,
   onSelectTrial,
   onCancel,
@@ -34,12 +38,28 @@ export default function CanvasPanel({
     <Stack gap="md" className="canvas-panel">
       {!runId && <PlaygroundIdle />}
 
+      {runId && runLoading && !run && (
+        <Stack align="center" gap="sm" py="xl">
+          <Loader size="sm" />
+          <Text size="sm" c="dimmed">
+            Loading run…
+          </Text>
+        </Stack>
+      )}
+
+      {runId && runError && !run && (
+        <Alert color="red" title="Run load failed">
+          Could not load run status. Refresh the page and try again.
+        </Alert>
+      )}
+
       {run && (
         <>
           <ComboRunSummary run={run} />
 
           {isActive && (
             <Button
+              type="button"
               color="red"
               variant="subtle"
               size="compact-sm"
@@ -53,13 +73,13 @@ export default function CanvasPanel({
 
           {run.run.status === "failed" && (
             <Alert color="red" title={runStatusLabel("failed")}>
-              {run.run.error ?? "The playground run did not finish."}
+              {run.run.error ?? "Run did not finish."}
             </Alert>
           )}
 
           <ComboArenaList
-            combos={run.comboResults}
-            grid={run.grid}
+            combos={run.comboResults ?? []}
+            grid={run.grid ?? []}
             selectedTrialId={selectedTrialId}
             onSelect={onSelectTrial}
           />
@@ -71,7 +91,7 @@ export default function CanvasPanel({
       {run && isComplete && (
         <>
           <ResultsPanel runName={run.run.name} combos={run.comboResults} />
-          <Button variant="light" onClick={onRunAgain} w="fit-content">
+          <Button type="button" variant="light" onClick={onRunAgain} w="fit-content">
             {COPY.app.runAgain}
           </Button>
         </>

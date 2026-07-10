@@ -31,6 +31,11 @@ export default function WorkspacePage() {
 
   const [prompt, setPrompt] = useState("");
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<string | null>("inputs");
+
+  useEffect(() => {
+    if (workspace.runId) setMobileTab("arena");
+  }, [workspace.runId]);
 
   useEffect(() => {
     if (samples.length && !selectedSampleId) {
@@ -145,6 +150,8 @@ export default function WorkspacePage() {
     <CanvasPanel
       run={workspace.run}
       runId={workspace.runId}
+      runLoading={workspace.isLoadingRun}
+      runError={workspace.runError}
       onCancel={() => workspace.cancel.mutate()}
       canceling={workspace.cancel.isPending}
       onRunAgain={workspace.reset}
@@ -160,7 +167,7 @@ export default function WorkspacePage() {
   if (mobile) {
     return (
       <div className="workspace-page">
-        <Tabs defaultValue="arena" className="mobile-panes">
+        <Tabs value={mobileTab} onChange={setMobileTab} defaultValue="inputs" className="mobile-panes">
           <Tabs.List grow>
             <Tabs.Tab value="inputs">{COPY.app.zones.inputs}</Tabs.Tab>
             <Tabs.Tab value="arena">{COPY.app.zones.run}</Tabs.Tab>
