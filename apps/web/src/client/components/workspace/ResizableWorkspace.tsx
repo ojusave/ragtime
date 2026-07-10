@@ -11,7 +11,7 @@ function ZoneLabel({ dotClass, label }: { dotClass: string; label: string }) {
   );
 }
 
-/** Three-zone playground: setup, arena, peek. */
+/** Three-pane layout: inputs, run output, trial detail. */
 export default function ResizableWorkspace({
   controls,
   canvas,
@@ -31,23 +31,23 @@ export default function ResizableWorkspace({
         groupResizeBehavior="preserve-pixel-size"
       >
         <aside className="workspace-pane workspace-pane--controls">
-          <ZoneLabel dotClass="" label={COPY.playground.zones.setup} />
+          <ZoneLabel dotClass="" label={COPY.app.zones.inputs} />
           <div className="pane-scroll">{controls}</div>
         </aside>
       </Panel>
 
-      <Separator className="resize-handle" aria-label="Resize setup and arena">
+      <Separator className="resize-handle" aria-label="Resize inputs and run panes">
         <span />
       </Separator>
 
       <Panel id="canvas" defaultSize="52%" minSize={480}>
         <main className="workspace-pane workspace-pane--canvas">
-          <ZoneLabel dotClass="pg-zone-dot--arena" label={COPY.playground.zones.arena} />
+          <ZoneLabel dotClass="pg-zone-dot--arena" label={COPY.app.zones.run} />
           <div className="pane-scroll">{canvas}</div>
         </main>
       </Panel>
 
-      <Separator className="resize-handle" aria-label="Resize arena and peek">
+      <Separator className="resize-handle" aria-label="Resize run and trial detail panes">
         <span />
       </Separator>
 
@@ -59,7 +59,7 @@ export default function ResizableWorkspace({
         groupResizeBehavior="preserve-pixel-size"
       >
         <aside className="workspace-pane workspace-pane--inspector">
-          <ZoneLabel dotClass="pg-zone-dot--peek" label={COPY.playground.zones.peek} />
+          <ZoneLabel dotClass="pg-zone-dot--peek" label={COPY.app.zones.detail} />
           <div className="pane-scroll">{inspector}</div>
         </aside>
       </Panel>

@@ -47,7 +47,7 @@ export default function ComboRunSummary({ run }: { run: RunPayload | undefined }
             {runStatusLabel(status)}
           </Text>
           <Text size="xs" c="dimmed">
-            {COPY.playground.elapsed(elapsedMs(run.run) / 1000)}
+            {COPY.app.elapsed(elapsedMs(run.run) / 1000)}
           </Text>
         </Stack>
       </Group>
@@ -70,10 +70,10 @@ export default function ComboRunSummary({ run }: { run: RunPayload | undefined }
         />
         <Stack gap={1}>
           <Text size="sm" fw={600}>
-            {COPY.playground.progress(complete, total)}
+            {COPY.app.progress(complete, total)}
           </Text>
           <Text size="xs" c="dimmed">
-            {failed ? `${failed} failed` : `${total} combos`}
+            {failed ? `${failed} failed` : `${total} trials`}
           </Text>
         </Stack>
       </Group>
@@ -83,7 +83,7 @@ export default function ComboRunSummary({ run }: { run: RunPayload | undefined }
           Spend
         </Text>
         <Text size="sm" fw={600}>
-          {COPY.playground.spend(
+          {COPY.app.spend(
             Number(run.run.totalCostUsd).toFixed(2),
             Number(run.run.budgetUsd).toFixed(2)
           )}
@@ -92,7 +92,7 @@ export default function ComboRunSummary({ run }: { run: RunPayload | undefined }
 
       <Stack gap={2} className="run-summary-cell" justify="center">
         <Text size="xs" c="dimmed" tt="uppercase" fw={600}>
-          {COPY.playground.bestScore}
+          {COPY.app.bestScore}
         </Text>
         <Text size="xl" fw={700}>
           {best > 0 ? best.toFixed(1) : "—"}

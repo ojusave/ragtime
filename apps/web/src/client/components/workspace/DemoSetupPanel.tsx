@@ -9,22 +9,17 @@ type Props = {
   onRetry: () => void;
 };
 
-/** Playground welcome screen while SciFact loads. */
 export default function DemoSetupPanel({ loading, failed, errorMessage, onRetry }: Props) {
   return (
     <div className="pg-setup">
       <div className="pg-setup-card">
         <Stack gap="lg">
           <Stack gap="xs">
-            <Group gap="sm">
-              <Text className="pg-section-title">RAGtime</Text>
-              <span className="pg-brand-badge">{COPY.playground.badge}</span>
-            </Group>
             <Title order={2} className="pg-setup-title">
-              {COPY.playground.welcomeTitle}
+              {COPY.app.welcomeTitle}
             </Title>
             <Text size="sm" c="dimmed">
-              {COPY.playground.welcomeBody}
+              {COPY.app.welcomeBody}
             </Text>
           </Stack>
 
@@ -45,7 +40,7 @@ export default function DemoSetupPanel({ loading, failed, errorMessage, onRetry 
           </Stack>
 
           {failed ? (
-            <Alert color="red" title="Could not open playground">
+            <Alert color="red" title="Corpus load failed">
               <Stack gap="sm">
                 <Text size="sm">{errorMessage ?? COPY.common.loadFailed}</Text>
                 <Button size="sm" onClick={onRetry}>
@@ -57,16 +52,12 @@ export default function DemoSetupPanel({ loading, failed, errorMessage, onRetry 
             <Group gap="sm" wrap="wrap">
               <Button
                 size="md"
-                className="pg-launch"
                 onClick={onRetry}
                 loading={loading}
                 leftSection={loading ? <Loader size="xs" color="white" /> : undefined}
               >
-                {loading ? COPY.playground.loadingDemo : COPY.playground.loadDemo}
+                {loading ? COPY.app.loadingDemo : COPY.app.loadDemo}
               </Button>
-              <Text size="xs" c="dimmed">
-                Loads the SciFact sample corpus so you can start experimenting.
-              </Text>
             </Group>
           )}
 

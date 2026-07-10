@@ -86,11 +86,11 @@ export default function ControlsPanel({
     <Stack gap="md" className="controls-panel">
       <Paper className="pg-panel" p="md">
         <Stack gap="md">
-          <Text className="pg-section-title">{COPY.playground.questionLab}</Text>
+          <Text className="pg-section-title">{COPY.app.questionSection}</Text>
 
           <Stack gap="xs">
-            <Text size="xs" c="dimmed" fw={600}>
-              {COPY.playground.sampleChips}
+            <Text size="xs" c="dimmed" fw={500}>
+              {COPY.app.sampleQuestions}
             </Text>
             <Group gap="xs">
               {samples.slice(0, 6).map((sample) => {
@@ -112,8 +112,8 @@ export default function ControlsPanel({
           </Stack>
 
           <Textarea
-            label={COPY.playground.yourQuestion}
-            placeholder={COPY.playground.promptPlaceholder}
+            label={COPY.app.yourQuestion}
+            placeholder={COPY.app.promptPlaceholder}
             value={prompt}
             onChange={(e) => onPromptChange(e.currentTarget.value)}
             minRows={3}
@@ -125,16 +125,16 @@ export default function ControlsPanel({
       <Paper className="pg-panel" p="md">
         <Stack gap="md">
           <Group justify="space-between" align="center">
-            <Text className="pg-section-title">{COPY.playground.modelMixer}</Text>
+            <Text className="pg-section-title">{COPY.app.modelsSection}</Text>
             <Button variant="light" size="compact-xs" onClick={applyStarterPreset}>
-              {COPY.playground.starterPreset}
+              {COPY.app.starterPreset}
             </Button>
           </Group>
 
           {suggestedEmb.length > 0 && (
             <Stack gap={6}>
               <Text size="xs" c="dimmed">
-                {COPY.playground.quickPicks} · search
+                {COPY.app.suggested} · embedding
               </Text>
               <Group gap="xs" grow preventGrowOverflow={false}>
                 {suggestedEmb.map((model) => {
@@ -156,7 +156,7 @@ export default function ControlsPanel({
           )}
 
           <MultiSelect
-            label={COPY.playground.embedLabel}
+            label={COPY.app.embedLabel}
             searchable
             data={embedCatalog.map((m) => ({ value: m.id, label: m.name }))}
             value={embModels}
@@ -164,13 +164,13 @@ export default function ControlsPanel({
           />
 
           <Checkbox
-            label={COPY.playground.noRerankLabel}
+            label={COPY.app.noRerankLabel}
             checked={noRerank}
             onChange={(e) => setNoRerank(e.currentTarget.checked)}
           />
 
           <MultiSelect
-            label={COPY.playground.rerankLabel}
+            label={COPY.app.rerankLabel}
             searchable
             data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
             value={rerModels}
@@ -180,7 +180,7 @@ export default function ControlsPanel({
           {suggestedGen.length > 0 && (
             <Stack gap={6}>
               <Text size="xs" c="dimmed">
-                {COPY.playground.quickPicks} · answer
+                {COPY.app.suggested} · generation
               </Text>
               <Group gap="xs" grow preventGrowOverflow={false}>
                 {suggestedGen.map((model) => {
@@ -202,7 +202,7 @@ export default function ControlsPanel({
           )}
 
           <MultiSelect
-            label={COPY.playground.genLabel}
+            label={COPY.app.genLabel}
             searchable
             data={genCatalog.map((m) => ({ value: m.id, label: m.name }))}
             value={genModels}
@@ -212,25 +212,25 @@ export default function ControlsPanel({
       </Paper>
 
       <Button variant="subtle" size="compact-sm" onClick={toggleAdvanced} px={0}>
-        {COPY.playground.advanced} {advancedOpen ? "▾" : "▸"}
+        {COPY.app.advanced} {advancedOpen ? "▾" : "▸"}
       </Button>
       <Collapse in={advancedOpen}>
         <Paper className="pg-panel pg-panel--dashed" p="md">
           <Stack gap="sm">
             <NumberInput
-              label={COPY.playground.retrieveLabel}
+              label={COPY.app.retrieveLabel}
               value={retrieveK}
               onChange={(v) => setRetrieveK(Number(v))}
               min={1}
             />
             <NumberInput
-              label={COPY.playground.finalKLabel}
+              label={COPY.app.finalKLabel}
               value={finalK}
               onChange={(v) => setFinalK(Number(v))}
               min={1}
             />
             <NumberInput
-              label={COPY.playground.budgetLabel}
+              label={COPY.app.budgetLabel}
               value={budget}
               onChange={setBudget}
               min={0.1}
@@ -252,7 +252,7 @@ export default function ControlsPanel({
         disabled={!canRun || running}
         fullWidth
       >
-        {running ? COPY.playground.launchRunning : COPY.playground.launchButton}
+        {running ? COPY.app.runningButton : COPY.app.runButton}
       </Button>
     </Stack>
   );

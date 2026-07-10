@@ -1,4 +1,4 @@
-import { Badge, Box, Group, ScrollArea, Stack, Text } from "@mantine/core";
+import { Badge, Box, Group, Stack, Text } from "@mantine/core";
 import type { ComboResult } from "@ragtime/core";
 import { COPY, TEST_STATUS_LABEL } from "../../lib/copy";
 import { comboDurationMs, comboModels } from "../../lib/combo-display";
@@ -40,14 +40,13 @@ export default function ComboArenaList({ combos, grid, selectedTrialId, onSelect
   return (
     <Stack gap="sm" className="combo-arena-list pg-arena-card">
       <Group justify="space-between" align="center">
-        <Text className="pg-section-title">{COPY.playground.combos}</Text>
+        <Text className="pg-section-title">{COPY.app.trials}</Text>
         <Text size="xs" c="dimmed">
-          {combos.length} total
+          {combos.length}
         </Text>
       </Group>
 
-      <ScrollArea.Autosize mah={420} type="auto" offsetScrollbars>
-        <Stack gap={8}>
+      <Stack gap={8}>
           {combos.map((combo) => {
             const cell = lookup.get(combo.comboId);
             const status = cell?.status ?? "pending";
@@ -90,7 +89,7 @@ export default function ComboArenaList({ combos, grid, selectedTrialId, onSelect
 
                   <Stack gap={4} align="flex-end" className="arena-combo-meta">
                     <Badge color={statusColor(status)} variant="light" size="sm">
-                      {TEST_STATUS_LABEL[status] ?? "Waiting"}
+                      {TEST_STATUS_LABEL[status] ?? "Pending"}
                     </Badge>
                     <Text size="xs" c="dimmed" ff="monospace">
                       {status === "pending" ? "—" : `${(ms / 1000).toFixed(1)}s`}
@@ -104,7 +103,6 @@ export default function ComboArenaList({ combos, grid, selectedTrialId, onSelect
             );
           })}
         </Stack>
-        </ScrollArea.Autosize>
 
       <Group gap="md" className="arena-legend">
         {[

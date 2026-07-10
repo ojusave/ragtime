@@ -47,7 +47,7 @@ export default function CanvasPanel({
               loading={canceling}
               w="fit-content"
             >
-              {COPY.workspace.cancel}
+              {COPY.app.cancel}
             </Button>
           )}
 
@@ -72,7 +72,7 @@ export default function CanvasPanel({
         <>
           <ResultsPanel runName={run.run.name} combos={run.comboResults} />
           <Button variant="light" onClick={onRunAgain} w="fit-content">
-            {COPY.workspace.runAgain}
+            {COPY.app.runAgain}
           </Button>
         </>
       )}

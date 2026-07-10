@@ -21,16 +21,10 @@ export default function App() {
               <img src="/favicon.svg" alt="" width="18" height="18" />
             </span>
             <Box className="pg-brand-copy">
-              <Group gap={8} wrap="nowrap">
-                <Text className="pg-brand-name">RAGtime</Text>
-                <span className="pg-brand-badge">{COPY.playground.badge}</span>
-              </Group>
+              <Text className="pg-brand-name">RAGtime</Text>
+              <Text className="pg-brand-subtitle">{COPY.app.subtitle}</Text>
             </Box>
           </Anchor>
-
-          <Text className="pg-kicker" visibleFrom="md">
-            {COPY.playground.kicker}
-          </Text>
 
           <Group gap="xs" wrap="nowrap" className="rag-utility-nav">
             <UnstyledButton className="pg-footer-link" onClick={() => setShowHow(true)}>
@@ -52,7 +46,7 @@ export default function App() {
 
       <Box component="footer" className="pg-footer">
         <Group justify="space-between" wrap="wrap" className="pg-footer-inner">
-          <span className="pg-footer-status">Render Workflows + OpenRouter models</span>
+          <span className="pg-footer-status">Render Workflows + OpenRouter</span>
           <Group gap="lg">
             <Anchor
               className="pg-footer-link"

@@ -1,20 +1,20 @@
 /** User-facing copy (single source of truth). */
 
 export const FLOW_STEPS = [
-  { label: "Pick a question", description: "Try a sample chip or type your own" },
-  { label: "Mix models", description: "Toggle search, rerank, and answer models" },
-  { label: "Launch and watch", description: "Every combo runs in parallel on Render Workflows" },
+  { label: "Choose a question", description: "SciFact sample or your own text" },
+  { label: "Select models", description: "Embedding, rerank, and generation models" },
+  { label: "Run the matrix", description: "Each combination runs as a Render Workflow task" },
 ] as const;
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
   draft: "Draft",
   ingesting: "Indexing documents",
   running: "Running",
-  aggregating: "Summing up",
+  aggregating: "Aggregating",
   complete: "Complete",
   failed: "Failed",
-  canceled: "Stopped",
-  budget_exceeded: "Budget reached",
+  canceled: "Canceled",
+  budget_exceeded: "Budget exceeded",
 };
 
 export function runStatusLabel(status: string): string {
@@ -22,19 +22,19 @@ export function runStatusLabel(status: string): string {
 }
 
 export const TEST_STATUS_LABEL: Record<string, string> = {
-  pending: "Waiting",
+  pending: "Pending",
   running: "Running",
-  complete: "Done",
+  complete: "Complete",
   failed: "Failed",
   skipped: "Skipped",
 };
 
 export const PIPELINE_STAGE_LABEL: Record<string, string> = {
-  embed: "Prepare question",
-  retrieve: "Find passages",
-  rerank: "Re-order passages",
-  generate: "Write answer",
-  judge: "Score answer",
+  embed: "Embed query",
+  retrieve: "Retrieve",
+  rerank: "Rerank",
+  generate: "Generate",
+  judge: "Judge",
 };
 
 export function stageLabel(stage: string): string {
@@ -50,169 +50,206 @@ export function formatMatrixSummary(args: {
   maxTrials: number;
 }): { line: string; trialCount: number; overLimit: boolean } {
   const setups = args.embedCount * args.rerankCount * args.genCount;
-  const testCount = setups * args.questionCount;
-  const overLimit = testCount > args.maxTrials;
-  const line = `${setups} combo${setups === 1 ? "" : "s"} × ${args.questionCount} question = ${testCount} experiment${testCount === 1 ? "" : "s"}. Budget: $${args.budgetUsd.toFixed(2)}.`;
-  return { line, trialCount: testCount, overLimit };
+  const trialCount = setups * args.questionCount;
+  const overLimit = trialCount > args.maxTrials;
+  const line = `${setups} setup${setups === 1 ? "" : "s"} × ${args.questionCount} question = ${trialCount} trial${trialCount === 1 ? "" : "s"}. Budget $${args.budgetUsd.toFixed(2)}.`;
+  return { line, trialCount, overLimit };
 }
 
 export function friendlyError(raw: string): string {
   const msg = raw.trim();
   if (!msg || msg === "Unknown error") {
-    return "Something went wrong. Try fewer models or check the service logs.";
+    return "Request failed. Try fewer models or check the service logs.";
   }
   if (msg.includes("ECONNREFUSED") || msg.includes("CONNECT_TIMEOUT") || msg.includes("5432")) {
-    return "The database is temporarily unavailable. Wait a minute and try again.";
+    return "Database unavailable. Wait a minute and try again.";
   }
   if (msg.includes("403") || msg.includes("forbidden") || msg.includes("RENDER_API_KEY")) {
-    return "Could not start the run. Check that the deployment is configured correctly.";
+    return "Run did not start. Check deployment configuration.";
   }
   if (msg.includes("402") || msg.includes("Insufficient credits")) {
     return "OpenRouter credits are low. Add credits at openrouter.ai/settings/credits.";
   }
   if (msg.includes("matrix would run") || msg.includes("max ")) {
-    return msg.replace(/trials/gi, "tests").replace(/model stack/gi, "model setup");
+    return msg.replace(/trials/gi, "trials").replace(/model stack/gi, "model setup");
   }
   if (msg.includes("Not found")) {
-    return "That run was not found. It may belong to another browser session.";
+    return "Run not found. It may belong to another browser session.";
   }
   return msg;
 }
 
 export const COPY = {
+  app: {
+    subtitle: "RAG model evaluation",
+    zones: { inputs: "Inputs", run: "Run", detail: "Trial detail" },
+    welcomeTitle: "Compare RAG models on SciFact",
+    welcomeBody:
+      "Run one question through multiple embedding, rerank, and generation models. Each model setup is a separate trial.",
+    questionSection: "Question",
+    modelsSection: "Models",
+    sampleQuestions: "Sample questions",
+    promptPlaceholder: "What does the evidence say about…?",
+    yourQuestion: "Question text",
+    embedLabel: "Embedding",
+    rerankLabel: "Rerank",
+    noRerankLabel: "Include runs without rerank",
+    genLabel: "Generation",
+    suggested: "Suggested",
+    starterPreset: "Suggested models",
+    advanced: "Retrieval settings",
+    retrieveLabel: "Retrieve K",
+    finalKLabel: "Final K",
+    budgetLabel: "Budget (USD)",
+    runButton: "Run",
+    runningButton: "Running…",
+    loadDemo: "Load SciFact corpus",
+    loadingDemo: "Loading SciFact corpus…",
+    canvasIdleTitle: "No run in progress",
+    canvasIdleBody: "Select models in Inputs and click Run.",
+    inspectorEmpty: "Select a trial row to view retrieved passages and the generated answer.",
+    runAgain: "New run",
+    cancel: "Cancel run",
+    progress: (done: number, total: number) => `${done} of ${total} complete`,
+    spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
+    elapsed: (sec: number) => `${sec.toFixed(1)}s`,
+    bestScore: "Best score",
+    trials: "Trials",
+    eventLog: "Event log",
+  },
+  /** @deprecated Use COPY.app — kept for gradual migration */
   playground: {
     badge: "Playground",
-    kicker: "Mix models · Watch live · Compare results",
-    zones: { setup: "Setup", arena: "Arena", peek: "Peek" },
-    welcomeTitle: "A sandbox for RAG model combos",
+    kicker: "",
+    zones: { setup: "Inputs", arena: "Run", peek: "Trial detail" },
+    welcomeTitle: "Compare RAG models on SciFact",
     welcomeBody:
-      "Ask one SciFact question, mix embedding and answer models, and watch every combination run in parallel.",
-    questionLab: "Question lab",
-    modelMixer: "Model mixer",
-    sampleChips: "Try a sample",
+      "Run one question through multiple embedding, rerank, and generation models. Each model setup is a separate trial.",
+    questionLab: "Question",
+    modelMixer: "Models",
+    sampleChips: "Sample questions",
     promptPlaceholder: "What does the evidence say about…?",
-    yourQuestion: "Your question",
-    embedLabel: "Search models",
-    rerankLabel: "Rerank models",
-    noRerankLabel: "Also run without reranking",
-    genLabel: "Answer models",
-    quickPicks: "Quick picks",
-    starterPreset: "Starter combo",
-    advanced: "Tweak knobs",
-    retrieveLabel: "Passages to fetch",
-    finalKLabel: "Passages to keep",
+    yourQuestion: "Question text",
+    embedLabel: "Embedding",
+    rerankLabel: "Rerank",
+    noRerankLabel: "Include runs without rerank",
+    genLabel: "Generation",
+    quickPicks: "Suggested",
+    starterPreset: "Suggested models",
+    advanced: "Retrieval settings",
+    retrieveLabel: "Retrieve K",
+    finalKLabel: "Final K",
     budgetLabel: "Budget (USD)",
-    launchButton: "Launch playground",
+    launchButton: "Run",
     launchRunning: "Running…",
-    loadDemo: "Open playground",
-    loadingDemo: "Setting up playground…",
-    canvasIdleTitle: "Nothing running yet",
-    canvasIdleBody:
-      "Pick models in Setup and hit Launch. Each combo gets its own row in the arena.",
-    inspectorEmpty: "Click a row in the arena to peek at passages, answers, and scores.",
-    runAgain: "Try another combo",
-    cancel: "Stop run",
-    progress: (done: number, total: number) => `${done} of ${total} combos done`,
-    spend: (spent: string, budget: string) => `$${spent} of $${budget}`,
-    elapsed: (sec: number) => `${sec.toFixed(1)}s elapsed`,
+    loadDemo: "Load SciFact corpus",
+    loadingDemo: "Loading SciFact corpus…",
+    canvasIdleTitle: "No run in progress",
+    canvasIdleBody: "Select models in Inputs and click Run.",
+    inspectorEmpty: "Select a trial row to view retrieved passages and the generated answer.",
+    runAgain: "New run",
+    cancel: "Cancel run",
+    progress: (done: number, total: number) => `${done} of ${total} complete`,
+    spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
+    elapsed: (sec: number) => `${sec.toFixed(1)}s`,
     bestScore: "Best score",
-    combos: "Live combos",
+    combos: "Trials",
   },
   workspace: {
-    title: "Ask one question. Try every model combo.",
-    subtitle: "Mix models on the left, watch them run in the arena, peek into any row.",
+    title: "Compare RAG models on SciFact",
+    subtitle: "One question, multiple model setups.",
     promptLabel: "Question",
     promptPlaceholder: "What does the evidence say about…?",
     sampleLabel: "Sample questions",
-    customPrompt: "Your question",
-    modelsHeading: "Model mixer",
-    embedLabel: "Search models",
-    rerankLabel: "Rerank models",
-    noRerankLabel: "Also run without reranking",
-    genLabel: "Answer models",
-    starterPreset: "Starter combo",
-    advanced: "Tweak knobs",
-    retrieveLabel: "Passages to fetch",
-    finalKLabel: "Passages to keep",
+    customPrompt: "Question text",
+    modelsHeading: "Models",
+    embedLabel: "Embedding",
+    rerankLabel: "Rerank",
+    noRerankLabel: "Include runs without rerank",
+    genLabel: "Generation",
+    starterPreset: "Suggested models",
+    advanced: "Retrieval settings",
+    retrieveLabel: "Retrieve K",
+    finalKLabel: "Final K",
     budgetLabel: "Budget (USD)",
-    runButton: "Launch playground",
+    runButton: "Run",
     runningButton: "Running…",
-    loadDemo: "Open playground",
-    loadingDemo: "Setting up playground…",
-    demoMissing: "Playground is not ready yet.",
-    canvasIdle: "Launch to start. Every combo runs in parallel.",
-    inspectorEmpty: "Click a row to peek at passages, answers, and scores.",
-    runAgain: "Try another combo",
-    cancel: "Stop run",
-    progress: (done: number, total: number) => `${done} of ${total} combos done`,
-    spend: (spent: string, budget: string) => `$${spent} of $${budget}`,
-    elapsed: (sec: number) => `${sec.toFixed(1)}s elapsed`,
+    loadDemo: "Load SciFact corpus",
+    loadingDemo: "Loading SciFact corpus…",
+    demoMissing: "SciFact corpus not loaded.",
+    canvasIdle: "Select models and click Run.",
+    inspectorEmpty: "Select a trial row to view passages and answers.",
+    runAgain: "New run",
+    cancel: "Cancel run",
+    progress: (done: number, total: number) => `${done} of ${total} complete`,
+    spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
+    elapsed: (sec: number) => `${sec.toFixed(1)}s`,
     bestScore: "Best score",
-    combos: "Live combos",
+    combos: "Trials",
   },
   howItWorks: {
-    title: "How the playground works",
+    title: "How a comparison runs",
     steps: [
       {
-        title: "Pick or write a question",
-        body: "The same question goes to every model combo you select.",
+        title: "Question",
+        body: "The same question is sent to every selected model setup.",
       },
       {
-        title: "Mix your models",
-        body: "Toggle search, rerank, and answer models. Each combination becomes one arena row.",
+        title: "Model matrix",
+        body: "You pick embedding, rerank, and generation models. Each combination is one trial.",
       },
       {
-        title: "Launch and peek",
-        body: "Render Workflows runs them in parallel. Click any row to inspect what it retrieved and answered.",
+        title: "Render Workflows",
+        body: "Trials run in parallel. Open a row to inspect retrieval, generation, and judge scores.",
       },
     ],
-    footnote: "Your experiments stay private to this browser session.",
+    footnote: "Runs are scoped to this browser session.",
   },
   results: {
-    leaderboard: "Results by setup",
-    chartTitle: "Cost vs quality",
+    leaderboard: "Results",
+    chartTitle: "Cost vs score",
     exportCsv: "Download CSV",
     columns: {
       setup: "Setup",
-      quality: "Quality",
+      quality: "Score",
       cost: "Cost",
-      p50: "Typical speed",
-      p95: "Slowest 5%",
+      p50: "p50 latency",
+      p95: "p95 latency",
       failures: "Failed",
     },
-    selfJudgedTooltip: "The answer model scored its own output. Treat scores as approximate.",
-    selfJudgedBadge: "self-scored",
+    selfJudgedTooltip: "The answer model scored its own output.",
+    selfJudgedBadge: "self-judged",
   },
   grid: {
-    legendPending: "Waiting",
+    legendPending: "Pending",
     legendRunning: "Running",
-    legendHigh: "High score",
+    legendHigh: "Complete",
     legendFailed: "Failed",
   },
   stages: {
-    findPassages: (n: number) => `Find passages (${n} found)`,
-    rerank: "Re-order passages",
-    kept: (n: number) => `Keeping ${n} passage${n === 1 ? "" : "s"}`,
-    writeAnswer: "Write answer",
-    rateAnswer: (model: string) => `Score answer (${model})`,
-    costLatency: "Time and cost",
+    findPassages: (n: number) => `Retrieve (${n} passages)`,
+    rerank: "Rerank",
+    kept: (n: number) => `${n} passage${n === 1 ? "" : "s"} kept`,
+    writeAnswer: "Generate",
+    rateAnswer: (model: string) => `Judge (${model})`,
+    costLatency: "Cost and latency",
     passageLabel: (idx: number) => `Passage ${idx}`,
     scores: (f: number, c: number, comp: number) =>
-      `Grounded ${f} · Correct ${c} · Complete ${comp}`,
+      `Faithfulness ${f} · Correctness ${c} · Completeness ${comp}`,
   },
   notify: {
-    comparisonStarted: "Playground launched",
-    comparisonStopped: "Run stopped",
-    demoLoaded: "Playground ready",
+    comparisonStarted: "Run started",
+    comparisonStopped: "Run canceled",
+    demoLoaded: "SciFact corpus loaded",
   },
   common: {
     loading: "Loading…",
-    tryAgain: "Try again",
+    tryAgain: "Retry",
     cancel: "Cancel",
     confirm: "Confirm",
     close: "Close",
     notFound: "Not found",
-    notFoundBody: "This page does not exist or was removed.",
-    loadFailed: "Could not load data",
+    notFoundBody: "This page does not exist.",
+    loadFailed: "Load failed",
   },
 } as const;

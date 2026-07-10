@@ -1,4 +1,4 @@
-import { Loader, ScrollArea, Stack, Text } from "@mantine/core";
+import { Loader, Stack, Text } from "@mantine/core";
 import { useMemo } from "react";
 import TrialStagesPanel from "../TrialStagesPanel";
 import { COPY } from "../../lib/copy";
@@ -31,9 +31,8 @@ export default function ComboInspector({
   if (!trial) {
     return (
       <Stack gap="sm" className="combo-inspector">
-        <Text className="pg-section-title">{COPY.playground.zones.peek}</Text>
         <Text size="sm" c="dimmed">
-          {COPY.playground.inspectorEmpty}
+          {COPY.app.inspectorEmpty}
         </Text>
       </Stack>
     );
@@ -48,21 +47,18 @@ export default function ComboInspector({
   return (
     <Stack gap="md" className="combo-inspector">
       <Stack gap={4}>
-        <Text className="pg-section-title">{COPY.playground.zones.peek}</Text>
         <Text fw={600} size="sm">
           {label}
         </Text>
-        <Text size="xs" c="dimmed" lineClamp={3}>
+        <Text size="xs" c="dimmed" lineClamp={4}>
           {trial.question.text}
         </Text>
       </Stack>
-      <ScrollArea.Autosize mah={520} type="auto">
-        <TrialStagesPanel
-          stages={trial.trial.stages}
-          answer={trial.trial.answer}
-          chunks={chunkMap}
-        />
-      </ScrollArea.Autosize>
+      <TrialStagesPanel
+        stages={trial.trial.stages}
+        answer={trial.trial.answer}
+        chunks={chunkMap}
+      />
     </Stack>
   );
 }
