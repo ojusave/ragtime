@@ -7,6 +7,10 @@ import { chunks, chunkEmbeddings } from "./schema.js";
 export function createPgVectorStore(db: Db): VectorStore {
   return {
     async deleteAndInsertChunks(documentId, corpusId, chunkRecords) {
+      // REVIEW M6 (Medium): delete and insert run as separate statements — a failure in
+      // between leaves the document with zero chunks, and concurrent ingestions can
+      // delete each other's inserts. Run both in one transaction (ideally together with
+      // the document status update in the caller).
       await db.delete(chunks).where(eq(chunks.documentId, documentId));
       if (chunkRecords.length === 0) return;
       await db.insert(chunks).values(

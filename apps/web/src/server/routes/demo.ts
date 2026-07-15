@@ -6,6 +6,9 @@ import { asSessionRequest } from "../types.js";
 const { corpora, documents, questions } = schema;
 const SCIFACT_NAME = SCIFACT_CORPUS.corpusName;
 
+// REVIEW H5 (High): seeding defaults to ENABLED unless explicitly set to "false" — an
+// unauthenticated caller can hammer /api/seed-demo. Flip the default (opt-in) for
+// non-local deployments and rate-limit the route.
 function allowDemoSeed(): boolean {
   return process.env.ALLOW_DEMO_SEED !== "false";
 }

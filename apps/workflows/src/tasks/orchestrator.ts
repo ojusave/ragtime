@@ -23,6 +23,11 @@ export const aggregateRun = task(
   },
   async function aggregateRun(runId: string): Promise<{ totalCostUsd: number }> {
     const db = getDb();
+    // REVIEW H4 (High): this overwrites runs.total_cost_usd with trial-stage sums only,
+    // discarding corpus-embedding spend that addCost accumulated incrementally (e.g.
+    // $0.20 embed + $0.50 trials shows $0.50 after aggregation). Fix: a durable run-level
+    // cost ledger (run_costs rows keyed by operation) and sum that here instead of
+    // recomputing from trial JSON.
     const rows = await db.execute<{ total: string }>(sql`
       SELECT COALESCE(SUM(
         COALESCE((t.stages->'retrieval'->>'costUsd')::numeric, 0) +
@@ -96,6 +101,13 @@ export const runBakeoff = task(
     if (!run) throw new Error(`Run not found: ${runId}`);
 
     const config = runConfigSchema.parse(run.config);
+    // REVIEW C4 (Critical): all run-status writes in this task are unconditional. The
+    // cancel endpoint only flips the DB flag, so a canceled (or budget_exceeded) run gets
+    // overwritten back to 'ingesting'/'running'/'complete' by these updates and the UI
+    // reports success on a run the user canceled. Fix: guarded transitions, e.g.
+    //   UPDATE runs SET status='running' WHERE id=:run_id AND status='ingesting';
+    // and reload + bail before each phase if status is terminal
+    // (canceled/budget_exceeded/failed).
     emitEvent(db, runId, "run.status", { status: "ingesting" });
     await db.update(runs).set({ status: "ingesting", startedAt: new Date(), error: null }).where(eq(runs.id, runId));
 
@@ -119,6 +131,13 @@ export const runBakeoff = task(
 
     let questionIds = config.questionIds;
     if (questionIds === "all") {
+      // REVIEW H3 (High): cross-session data leak. The API route resolves "all" as
+      // public + caller's own questions, but this expansion pulls EVERY question in the
+      // corpus — including other anonymous sessions' private ones — and their text and
+      // results become readable via /api/runs/:id (run ownership, not question ownership,
+      // gates access). Fix: resolve "all" with the same ownership predicate at run
+      // creation and snapshot the IDs (e.g. a run_questions table); the workflow should
+      // read only that snapshot.
       const qs = await db.select({ id: questions.id }).from(questions).where(eq(questions.corpusId, run.corpusId));
       questionIds = qs.map((q) => q.id);
     }

@@ -4,6 +4,11 @@ import { api } from "../lib/api";
 import { formatMatrixSummary } from "../lib/copy";
 import type { Catalog } from "./types";
 
+// REVIEW L2 (Low): README claims "no hardcoded model slugs in app code", but these
+// presets are hardcoded (and duplicated in CorpusPage). Not a security issue since they
+// are filtered against the live catalog, but fix the README claim, centralize the IDs in
+// one config module, and handle the empty-starter case when these slugs leave the
+// catalog.
 const SUGGESTED_EMB = ["baai/bge-large-en-v1.5", "google/gemini-embedding-001"];
 const SUGGESTED_GEN = ["mistralai/mistral-small-24b-instruct-2501", "qwen/qwen3.5-9b"];
 

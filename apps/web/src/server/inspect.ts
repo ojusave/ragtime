@@ -23,6 +23,14 @@ export const inspectConfigSchema = z.object({
   judgeModel: z.string().optional(),
 });
 
+// REVIEW H6 (High): possession of the UUID is the only auth on the stream — the session
+// is not bound to the caller's cookie session, so any client with the id can consume it.
+// Entries never expire if the stream is never opened (unbounded map growth), the pipeline
+// runs real provider calls with no budget guard against unvalidated corpusId/model ids,
+// and a client disconnect does not abort in-flight provider work. Fix: add
+// ownerSessionId + expiresAt + AbortController to InspectSession, check ownership on the
+// stream route, evict expired entries, validate corpus visibility, and propagate the
+// abort signal through the gateway.
 type InspectSession = {
   config: z.infer<typeof inspectConfigSchema>;
 };
@@ -117,6 +125,10 @@ export function registerInspectRoutes(app: FastifyInstance) {
         });
         keptIds = keptChunkIds;
         totalLatency += stage.latencyMs;
+        // REVIEW H7 (High): double-counted — rerankCandidates already invoked onCost with
+        // this receipt's cost, and here stage.costUsd is added again (same for generate
+        // and judge below), so the inspector reports 2× actual spend. Pick one accounting
+        // path: either drop the onCost callbacks here or stop adding stage.costUsd.
         totalCost += stage.costUsd;
         send("stage", { stage: "rerank", data: stage, receipt: stage });
       } else {

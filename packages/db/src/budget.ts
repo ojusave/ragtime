@@ -2,6 +2,15 @@ import { sql } from "drizzle-orm";
 import type { Db } from "./client.js";
 import { emitEvent } from "./events.js";
 
+// REVIEW C1 (Critical, OpenRouter×Render): This is post-spend accounting, not a spend
+// guard. The increment happens after the provider call has already been billed, and the
+// two UPDATEs below race (increment vs. status flip). Concurrent trial fan-out can blow
+// past the budget before any caller observes `exceeded`. Fix: an awaited reservation with
+// a DB-side ceiling, e.g.
+//   UPDATE runs SET reserved_cost_usd = reserved_cost_usd + :estimate
+//   WHERE id = :run_id AND total_cost_usd + reserved_cost_usd + :estimate <= budget_usd
+//   RETURNING ...
+// reserved before the paid call and reconciled (awaited) after the receipt arrives.
 /** Atomic spend guard: returns new total and whether budget was exceeded. */
 export async function addCost(
   db: Db,
@@ -26,6 +35,9 @@ export async function addCost(
   const budget = Number(row.budget_usd);
 
   if (total > budget && row.status !== "budget_exceeded") {
+    // REVIEW C1/C4 (Critical): unconditional status write — a late cost callback can
+    // overwrite `canceled`/`complete`/`failed`. Make it conditional:
+    //   ... WHERE id = :run_id AND status NOT IN ('canceled','complete','failed','budget_exceeded')
     await db.execute(sql`
       UPDATE runs SET status = 'budget_exceeded' WHERE id = ${runId}
     `);

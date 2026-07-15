@@ -4,6 +4,12 @@ import { corpora, documents, questions } from "./schema.js";
 import { migrate } from "./migrate.js";
 import { SEED_CORPORA, type SeedCorpus } from "./datasets/index.js";
 
+// REVIEW M7 (Medium): check-then-insert throughout this function is not concurrency-safe
+// — two simultaneous /api/seed-demo calls can each create the corpus (and duplicate
+// documents/questions; there are no unique constraints on corpora.name or
+// documents(corpus_id, title)). Duplicates then inflate "all" question counts and future
+// run work. Add unique indexes matching the seed identity and use
+// INSERT ... ON CONFLICT ... RETURNING inside a transaction.
 export async function seedCorpus(db: ReturnType<typeof getDb>, bundle: SeedCorpus): Promise<string> {
   let corpus = await db.query.corpora.findFirst({
     where: eq(corpora.name, bundle.corpusName),

@@ -30,6 +30,16 @@ export async function buildServer() {
     },
   }));
 
+  // REVIEW H2 (High): CorpusPage calls /api/corpora/:id (GET, document upload, URL
+  // ingestion, questions) but no corpora route module is registered here, so every call
+  // 404s — the page is also unreachable from the router. Either implement/register
+  // routes/corpora.ts (with ownership checks and H1's safe URL fetching) plus the React
+  // routes, or delete the dead CorpusPage code and update the README.
+  // REVIEW H5 (High): every spend-bearing route below (seed-demo, runs, inspect) is
+  // anonymous with no rate limit, concurrency cap, or spend quota; the session cookie is
+  // client-controlled and trivially rotated. Add IP+session rate limiting, per-session
+  // concurrent-run/inspect limits, spend quotas, and disable demo seeding by default
+  // outside local deployments.
   registerDemoRoutes(app);
   registerModelRoutes(app);
   registerRunRoutes(app);

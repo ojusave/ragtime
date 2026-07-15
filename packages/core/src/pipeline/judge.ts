@@ -14,6 +14,12 @@ export const rubricScorer: Scorer = {
       input.candidate
     );
 
+    // REVIEW M2 (Medium): the catch-all below conflates provider failure with parse
+    // failure. A billed-but-malformed first response triggers a second billed call whose
+    // receipt replaces (not adds to) the first, so recorded cost/latency understate real
+    // spend — and permanent errors (401/400) are retried too. Let provider errors
+    // propagate, retry only on parse failure, and combine both receipts when a retry
+    // happens.
     let text: string;
     let receipt;
     try {
@@ -56,6 +62,11 @@ export function parseJudgeJson(raw: string): {
   const trimmed = raw.trim();
   const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
   const jsonStr = fenceMatch ? fenceMatch[1]!.trim() : trimmed;
+  // REVIEW M10 (Medium): no range/finiteness validation — Number(undefined) is NaN, and
+  // negative or >10 values pass straight into computeOverallScore and are persisted as
+  // the trial's overallScore. Validate with a strict zod schema
+  // (z.number().finite().min(0).max(10)) and treat failure as a parse error; also
+  // constrain judgeWeights to sum to 1 (or normalize).
   const parsed = JSON.parse(jsonStr) as Record<string, unknown>;
   return {
     faithfulness: Number(parsed.faithfulness),
