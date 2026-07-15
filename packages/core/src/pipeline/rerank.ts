@@ -1,5 +1,6 @@
-import type { ModelGateway } from "../ports.js";
+import type { CostController, ModelGateway } from "../ports.js";
 import type { TrialStageRerank } from "../schemas.js";
+import { runCostedOperation } from "./cost.js";
 
 export type RerankInput = {
   gateway: ModelGateway;
@@ -9,19 +10,29 @@ export type RerankInput = {
   chunkContents: string[];
   finalK: number;
   relevanceThreshold?: number | null;
-  onCost?: (usd: number) => void;
+  costController?: CostController;
+  operationKey?: string;
+  onCost?: (usd: number) => Promise<void>;
 };
 
 export async function rerankCandidates(
   input: RerankInput
 ): Promise<{ stage: TrialStageRerank; keptChunkIds: string[] }> {
-  const { results, receipt } = await input.gateway.rerank({
-    model: input.rerankModel,
-    query: input.query,
-    documents: input.chunkContents,
-    topN: input.finalK,
+  const { results, receipt } = await runCostedOperation({
+    controller: input.costController,
+    operationKey:
+      input.operationKey ?? `rerank:${input.rerankModel}:${input.query}`,
+    kind: "rerank",
+    call: (maxCostUsd) =>
+      input.gateway.rerank({
+        model: input.rerankModel,
+        query: input.query,
+        documents: input.chunkContents,
+        topN: input.finalK,
+        maxCostUsd,
+      }),
   });
-  input.onCost?.(receipt.costUsd);
+  await input.onCost?.(receipt.costUsd);
 
   let filtered = results;
   if (input.relevanceThreshold != null) {

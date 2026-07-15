@@ -28,11 +28,16 @@ export interface ModelGateway {
     model: string;
     messages: Msg[];
     jsonSchema?: Record<string, unknown>;
+    maxTokens?: number;
+    /** Adapter-enforced upper bound for this provider request. */
+    maxCostUsd?: number;
   }): Promise<WithReceipt<{ text: string }>>;
 
   embed(req: {
     model: string;
     input: string[];
+    /** Adapter-enforced upper bound for this provider request. */
+    maxCostUsd?: number;
   }): Promise<WithReceipt<{ vectors: number[][]; dims: number }>>;
 
   rerank(req: {
@@ -40,6 +45,8 @@ export interface ModelGateway {
     query: string;
     documents: string[];
     topN: number;
+    /** Adapter-enforced upper bound for this provider request. */
+    maxCostUsd?: number;
   }): Promise<WithReceipt<{ results: { index: number; relevance: number }[] }>>;
 
   catalog(): Promise<{
@@ -47,6 +54,22 @@ export interface ModelGateway {
     rerank: ModelInfo[];
     chat: ModelInfo[];
   }>;
+}
+
+export type CostOperationKind =
+  | "corpus_embedding"
+  | "query_embedding"
+  | "rerank"
+  | "generation"
+  | "judge";
+
+/** Durable, idempotent budget control supplied by the workflow boundary. */
+export interface CostController {
+  reserve(
+    operationKey: string,
+    kind: CostOperationKind
+  ): Promise<{ maxCostUsd: number }>;
+  settle(operationKey: string, actualUsd: number): Promise<void>;
 }
 
 export type ChunkRecord = {
@@ -131,6 +154,8 @@ export type ScorerInput = {
   question: string;
   referenceAnswer: string;
   candidate: string;
+  costController?: CostController;
+  operationPrefix?: string;
 };
 
 export interface Scorer {

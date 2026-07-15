@@ -1,4 +1,5 @@
 import { eq } from "drizzle-orm";
+import { runConfigSchema } from "@ragtime/core";
 import type { getDb } from "@ragtime/db";
 import { schema } from "@ragtime/db";
 
@@ -26,5 +27,13 @@ export async function getOwnedTrial(db: Db, trialId: string, sessionId: string) 
   if (!trial) return null;
   const run = await getOwnedRun(db, trial.runId, sessionId);
   if (!run) return null;
+  const parsed = runConfigSchema.safeParse(run.config);
+  if (
+    !parsed.success ||
+    parsed.data.questionIds === "all" ||
+    !parsed.data.questionIds.includes(trial.questionId)
+  ) {
+    return null;
+  }
   return { trial, run };
 }

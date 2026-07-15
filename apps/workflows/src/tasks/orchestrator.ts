@@ -1,18 +1,30 @@
 import { task } from "@renderinc/sdk/workflows";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, inArray, sql } from "drizzle-orm";
 import {
   runConfigSchema,
   QUESTION_GEN_SYSTEM,
   buildQuestionGenUserPrompt,
 } from "@ragtime/core";
 import { getAppConfig } from "@ragtime/core";
-import { getDb, schema, emitEvent } from "@ragtime/db";
+import {
+  appendRunEvent,
+  getDb,
+  schema,
+  transitionRun,
+} from "@ragtime/db";
 import { wirePorts } from "../wiring.js";
 import { runInWaves } from "../lib/fanout.js";
 import { ingestDocument, embedCorpus } from "./ingest.js";
-import { runTrial } from "./trial.js";
+import {
+  MAX_TRIAL_ATTEMPTS,
+  TRIAL_LEASE_MS,
+  runTrial,
+} from "./trial.js";
 
 const { runs, documents, trials, combos, questions, chunks } = schema;
+const TRIAL_POLL_INTERVAL_MS = 2_000;
+const TRIAL_DRAIN_TIMEOUT_MS =
+  TRIAL_LEASE_MS * (MAX_TRIAL_ATTEMPTS + 1) + 60_000;
 
 export const aggregateRun = task(
   {
@@ -24,16 +36,22 @@ export const aggregateRun = task(
   async function aggregateRun(runId: string): Promise<{ totalCostUsd: number }> {
     const db = getDb();
     const rows = await db.execute<{ total: string }>(sql`
-      SELECT COALESCE(SUM(
-        COALESCE((t.stages->'retrieval'->>'costUsd')::numeric, 0) +
-        COALESCE((t.stages->'rerank'->>'costUsd')::numeric, 0) +
-        COALESCE((t.stages->'generation'->>'costUsd')::numeric, 0) +
-        COALESCE((t.stages->'judge'->>'costUsd')::numeric, 0)
-      ), 0) AS total
-      FROM trials t WHERE run_id = ${runId}
+      SELECT GREATEST(
+        COALESCE((
+          SELECT SUM(actual_usd)
+          FROM run_cost_entries
+          WHERE run_id = ${runId} AND status = 'settled'
+        ), 0),
+        COALESCE((
+          SELECT total_cost_usd FROM runs WHERE id = ${runId}
+        ), 0)
+      ) AS total
     `);
     const total = Number(rows[0]?.total ?? 0);
-    await db.update(runs).set({ totalCostUsd: String(total), finishedAt: new Date() }).where(eq(runs.id, runId));
+    await db
+      .update(runs)
+      .set({ totalCostUsd: String(total) })
+      .where(eq(runs.id, runId));
     return { totalCostUsd: total };
   }
 );
@@ -95,83 +113,234 @@ export const runBakeoff = task(
     const run = await db.query.runs.findFirst({ where: eq(runs.id, runId) });
     if (!run) throw new Error(`Run not found: ${runId}`);
 
+    const terminalStatuses = new Set([
+      "complete",
+      "failed",
+      "canceled",
+      "budget_exceeded",
+    ]);
+    if (terminalStatuses.has(run.status)) return { status: run.status };
+
     const config = runConfigSchema.parse(run.config);
-    emitEvent(db, runId, "run.status", { status: "ingesting" });
-    await db.update(runs).set({ status: "ingesting", startedAt: new Date(), error: null }).where(eq(runs.id, runId));
+    const readStatus = async (): Promise<string> => {
+      const current = await db.query.runs.findFirst({
+        where: eq(runs.id, runId),
+      });
+      return current?.status ?? "missing";
+    };
+    const failPhase = async (
+      expected: "ingesting" | "running",
+      message: string
+    ): Promise<{ status: string }> => {
+      const failedRun = await transitionRun(db, runId, expected, "failed", {
+        error: message,
+        finishedAt: new Date(),
+      });
+      if (!failedRun) return { status: await readStatus() };
+      await appendRunEvent(db, runId, "run.status", {
+        status: "failed",
+        error: message,
+      });
+      throw new Error(message);
+    };
 
-    const pendingDocs = await db
-      .select({ id: documents.id })
-      .from(documents)
-      .where(sql`${documents.corpusId} = ${run.corpusId} AND ${documents.status} != 'ready'`);
-
-    const ingestResults = await Promise.allSettled(
-      pendingDocs.map((d) => ingestDocument({ documentId: d.id, runId }))
-    );
-    if (ingestResults.some((r) => r.status === "rejected")) {
-      await db.update(runs).set({ status: "failed", error: "Document ingestion failed" }).where(eq(runs.id, runId));
-      throw new Error("Document ingestion failed");
-    }
-
-    const embedModels = [...new Set(config.embeddingModels)];
-    await Promise.all(
-      embedModels.map((model) => embedCorpus({ runId, corpusId: run.corpusId, model }))
-    );
-
-    let questionIds = config.questionIds;
-    if (questionIds === "all") {
-      const qs = await db.select({ id: questions.id }).from(questions).where(eq(questions.corpusId, run.corpusId));
-      questionIds = qs.map((q) => q.id);
-    }
-
-    const runCombos = await db.select().from(combos).where(eq(combos.runId, runId));
-    for (const combo of runCombos) {
-      for (const qid of questionIds) {
-        await db.execute(sql`
-          INSERT INTO trials (run_id, combo_id, question_id, status, stages)
-          VALUES (${runId}, ${combo.id}, ${qid}, 'pending', '{}')
-          ON CONFLICT (combo_id, question_id) DO NOTHING
-        `);
+    let status = run.status;
+    if (status === "draft") {
+      const ingesting = await transitionRun(db, runId, "draft", "ingesting", {
+        startedAt: new Date(),
+        error: null,
+      });
+      if (ingesting) {
+        status = "ingesting";
+        await appendRunEvent(db, runId, "run.status", {
+          status: "ingesting",
+        });
+      } else {
+        status = await readStatus();
       }
     }
 
-    emitEvent(db, runId, "run.status", { status: "running" });
-    await db.update(runs).set({ status: "running" }).where(eq(runs.id, runId));
-
-    const pendingTrials = await db
-      .select({ id: trials.id })
-      .from(trials)
-      .where(sql`${trials.runId} = ${runId} AND ${trials.status} NOT IN ('complete', 'skipped')`);
-
-    const { trialFanoutBatch } = getAppConfig();
-    await runInWaves(pendingTrials, trialFanoutBatch, (t) => runTrial(t.id));
-
-    const incomplete = await db
-      .select({ id: trials.id, status: trials.status })
-      .from(trials)
-      .where(sql`${trials.runId} = ${runId} AND ${trials.status} NOT IN ('complete', 'skipped')`);
-
-    if (incomplete.length > 0) {
-      const failed = incomplete.filter((t) => t.status === "failed").length;
-      const stuck = incomplete.length - failed;
-      const message = `Bake-off incomplete: ${failed} failed, ${stuck} pending/running trials`;
-      await db.update(runs).set({ status: "failed", error: message }).where(eq(runs.id, runId));
-      emitEvent(db, runId, "run.status", { status: "failed", error: message });
-      throw new Error(message);
+    if (terminalStatuses.has(status) || status === "missing") {
+      return { status };
     }
 
-    const updated = await db.query.runs.findFirst({ where: eq(runs.id, runId) });
-    if (updated?.status === "budget_exceeded") {
-      emitEvent(db, runId, "budget.tripped", {});
+    // Each phase is restartable. A Render retry resumes from the persisted run
+    // status instead of returning early and leaving the run stranded.
+    if (status === "ingesting") {
+      const pendingDocs = await db
+        .select({ id: documents.id })
+        .from(documents)
+        .where(
+          sql`${documents.corpusId} = ${run.corpusId} AND ${documents.status} != 'ready'`
+        );
+
+      const ingestResults = await Promise.allSettled(
+        pendingDocs.map((document) =>
+          ingestDocument({ documentId: document.id, runId })
+        )
+      );
+      if (ingestResults.some((result) => result.status === "rejected")) {
+        return await failPhase("ingesting", "Document ingestion failed");
+      }
+
+      const embedModels = [...new Set(config.embeddingModels)];
+      const embedResults = await Promise.allSettled(
+        embedModels.map((model) =>
+          embedCorpus({ runId, corpusId: run.corpusId, model })
+        )
+      );
+      if (embedResults.some((result) => result.status === "rejected")) {
+        const current = await readStatus();
+        if (terminalStatuses.has(current)) return { status: current };
+        return await failPhase("ingesting", "Corpus embedding failed");
+      }
+
+      const questionIds = config.questionIds;
+      if (questionIds === "all") {
+        return await failPhase(
+          "ingesting",
+          "Run question snapshot is missing"
+        );
+      }
+
+      const runCombos = await db
+        .select()
+        .from(combos)
+        .where(eq(combos.runId, runId));
+      for (const combo of runCombos) {
+        for (const questionId of questionIds) {
+          await db.execute(sql`
+            INSERT INTO trials (run_id, combo_id, question_id, status, stages)
+            VALUES (${runId}, ${combo.id}, ${questionId}, 'pending', '{}')
+            ON CONFLICT (combo_id, question_id) DO NOTHING
+          `);
+        }
+      }
+
+      const running = await transitionRun(db, runId, "ingesting", "running");
+      if (running) {
+        status = "running";
+        await appendRunEvent(db, runId, "run.status", { status: "running" });
+      } else {
+        status = await readStatus();
+      }
+    }
+
+    if (terminalStatuses.has(status) || status === "missing") {
+      return { status };
+    }
+
+    if (status === "running") {
+      if (config.questionIds === "all") {
+        return await failPhase("running", "Run question snapshot is missing");
+      }
+      const snapshotQuestionIds = config.questionIds;
+      const { trialFanoutBatch } = getAppConfig();
+      const drainDeadline = Date.now() + TRIAL_DRAIN_TIMEOUT_MS;
+
+      while (true) {
+        const current = await readStatus();
+        if (terminalStatuses.has(current)) return { status: current };
+
+        const incomplete = await db
+          .select({
+            id: trials.id,
+            status: trials.status,
+            attempts: trials.attempts,
+            leaseExpiresAt: trials.leaseExpiresAt,
+          })
+          .from(trials)
+          .where(
+            and(
+              eq(trials.runId, runId),
+              inArray(trials.questionId, snapshotQuestionIds),
+              sql`${trials.status} NOT IN ('complete', 'skipped')`
+            )
+          );
+        if (incomplete.length === 0) break;
+
+        const now = Date.now();
+        const hasLiveLease = (trial: (typeof incomplete)[number]) =>
+          trial.status === "running" &&
+          trial.leaseExpiresAt != null &&
+          trial.leaseExpiresAt.getTime() > now;
+        const exhausted = incomplete.filter(
+          (trial) =>
+            trial.attempts >= MAX_TRIAL_ATTEMPTS && !hasLiveLease(trial)
+        );
+        if (exhausted.length > 0 || now >= drainDeadline) {
+          const failed = incomplete.filter(
+            (trial) => trial.status === "failed"
+          ).length;
+          const stuck = incomplete.length - failed;
+          return await failPhase(
+            "running",
+            `Bake-off incomplete: ${failed} failed, ${stuck} pending/running trials`
+          );
+        }
+
+        const runnable = incomplete.filter(
+          (trial) =>
+            trial.status === "pending" ||
+            trial.status === "failed" ||
+            (trial.status === "running" && !hasLiveLease(trial))
+        );
+        if (runnable.length > 0) {
+          await runInWaves(runnable, trialFanoutBatch, (trial) =>
+            runTrial(trial.id)
+          );
+          continue;
+        }
+
+        const nearestLeaseExpiry = Math.min(
+          ...incomplete
+            .map((trial) => trial.leaseExpiresAt?.getTime() ?? now)
+            .filter((expiresAt) => expiresAt > now)
+        );
+        const delayMs = Math.max(
+          50,
+          Math.min(
+            TRIAL_POLL_INTERVAL_MS,
+            nearestLeaseExpiry - now + 10
+          )
+        );
+        await new Promise<void>((resolve) => setTimeout(resolve, delayMs));
+      }
+
+      const aggregating = await transitionRun(
+        db,
+        runId,
+        "running",
+        "aggregating"
+      );
+      if (aggregating) {
+        status = "aggregating";
+        await appendRunEvent(db, runId, "run.status", {
+          status: "aggregating",
+        });
+      } else {
+        status = await readStatus();
+      }
+    }
+
+    if (terminalStatuses.has(status) || status === "missing") {
+      return { status };
+    }
+
+    if (status === "aggregating") {
       await aggregateRun(runId);
-      return { status: "budget_exceeded" };
+      const completed = await transitionRun(
+        db,
+        runId,
+        "aggregating",
+        "complete",
+        { finishedAt: new Date() }
+      );
+      if (!completed) return { status: await readStatus() };
+      await appendRunEvent(db, runId, "run.status", { status: "complete" });
+      return { status: "complete" };
     }
 
-    emitEvent(db, runId, "run.status", { status: "aggregating" });
-    await db.update(runs).set({ status: "aggregating" }).where(eq(runs.id, runId));
-    await aggregateRun(runId);
-    await db.update(runs).set({ status: "complete" }).where(eq(runs.id, runId));
-    emitEvent(db, runId, "run.status", { status: "complete" });
-
-    return { status: "complete" };
+    return { status: await readStatus() };
   }
 );

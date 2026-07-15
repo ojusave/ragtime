@@ -1,5 +1,11 @@
-import type { ModelGateway, VectorStore, WithReceipt } from "../ports.js";
+import type {
+  CostController,
+  ModelGateway,
+  VectorStore,
+  WithReceipt,
+} from "../ports.js";
 import type { TrialStageRetrieval } from "../schemas.js";
+import { runCostedOperation } from "./cost.js";
 
 export type EmbedQueryInput = {
   gateway: ModelGateway;
@@ -10,7 +16,9 @@ export type EmbedQueryInput = {
   embeddingModel: string;
   /** When false, skip query_embeddings cache (inspector path). Default true. */
   persist?: boolean;
-  onCost?: (usd: number) => void;
+  costController?: CostController;
+  operationKey?: string;
+  onCost?: (usd: number) => Promise<void>;
 };
 
 export async function embedQuery(
@@ -26,11 +34,20 @@ export async function embedQuery(
     if (cached) return { vector: cached, receipt: null };
   }
 
-  const result = await input.gateway.embed({
-    model: input.embeddingModel,
-    input: [input.questionText],
+  const result = await runCostedOperation({
+    controller: input.costController,
+    operationKey:
+      input.operationKey ??
+      `query:${input.runId}:${input.questionId}:${input.embeddingModel}`,
+    kind: "query_embedding",
+    call: (maxCostUsd) =>
+      input.gateway.embed({
+        model: input.embeddingModel,
+        input: [input.questionText],
+        maxCostUsd,
+      }),
   });
-  input.onCost?.(result.receipt.costUsd);
+  await input.onCost?.(result.receipt.costUsd);
   const vector = result.vectors[0]!;
   if (persist) {
     await input.vectorStore.saveQueryEmbedding({
@@ -76,7 +93,9 @@ export type EmbedBatchInput = {
   corpusId: string;
   embeddingModel: string;
   chunkIds: string[];
-  onCost?: (usd: number) => void;
+  costController?: CostController;
+  operationKey?: string;
+  onCost?: (usd: number) => Promise<void>;
 };
 
 export async function embedChunkBatch(
@@ -96,11 +115,20 @@ export async function embedChunkBatch(
   const ids = toEmbed.filter((id) => chunkMap.has(id));
   const texts = ids.map((id) => chunkMap.get(id)!.content);
 
-  const result = await input.gateway.embed({
-    model: input.embeddingModel,
-    input: texts,
+  const result = await runCostedOperation({
+    controller: input.costController,
+    operationKey:
+      input.operationKey ??
+      `corpus:${input.corpusId}:${input.embeddingModel}:${ids.join(",")}`,
+    kind: "corpus_embedding",
+    call: (maxCostUsd) =>
+      input.gateway.embed({
+        model: input.embeddingModel,
+        input: texts,
+        maxCostUsd,
+      }),
   });
-  input.onCost?.(result.receipt.costUsd);
+  await input.onCost?.(result.receipt.costUsd);
 
   await input.vectorStore.upsertChunkEmbeddings({
     chunkIds: ids,

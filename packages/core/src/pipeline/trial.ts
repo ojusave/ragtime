@@ -4,6 +4,7 @@ import {
   type TrialStages,
 } from "../schemas.js";
 import type { PipelinePorts } from "../ports.js";
+import type { CostController } from "../ports.js";
 import { embedQuery, retrieveCandidates } from "./retrieve.js";
 import { rerankCandidates, topKByScore } from "./rerank.js";
 import { generateAnswer } from "./generate.js";
@@ -26,7 +27,14 @@ export type RunTrialPipelineInput = {
   judgeWeights?: JudgeWeights;
   existingStages?: TrialStages;
   existingAnswer?: string | null;
-  onCost?: (usd: number) => void;
+  costController?: CostController;
+  operationPrefix?: string;
+  onCost?: (usd: number) => Promise<void>;
+  onStageComplete?: (
+    stage: keyof TrialStages,
+    value: NonNullable<TrialStages[keyof TrialStages]>,
+    answer?: string
+  ) => Promise<void>;
 };
 
 export type RunTrialPipelineResult = {
@@ -40,6 +48,8 @@ export async function runTrialPipeline(
 ): Promise<RunTrialPipelineResult> {
   const { ports } = input;
   let stages: TrialStages = { ...(input.existingStages ?? {}) };
+  const operationPrefix =
+    input.operationPrefix ?? `trial:${input.runId}:${input.questionId}`;
 
   if (!stages.retrieval) {
     const { vector, receipt } = await embedQuery({
@@ -49,6 +59,8 @@ export async function runTrialPipeline(
       questionId: input.questionId,
       questionText: input.questionText,
       embeddingModel: input.embeddingModel,
+      costController: input.costController,
+      operationKey: `${operationPrefix}:retrieval:embed`,
       onCost: input.onCost,
     });
     stages.retrieval = await retrieveCandidates({
@@ -63,6 +75,7 @@ export async function runTrialPipeline(
       stages.retrieval.tokens = receipt.tokens;
       stages.retrieval.latencyMs += receipt.latencyMs;
     }
+    await input.onStageComplete?.("retrieval", stages.retrieval);
   }
 
   let keptChunkIds: string[];
@@ -78,10 +91,13 @@ export async function runTrialPipeline(
       chunkContents: docs,
       finalK: input.finalK,
       relevanceThreshold: input.relevanceThreshold,
+      costController: input.costController,
+      operationKey: `${operationPrefix}:rerank`,
       onCost: input.onCost,
     });
     stages.rerank = stage;
     keptChunkIds = kept;
+    await input.onStageComplete?.("rerank", stage);
   } else if (stages.rerank) {
     keptChunkIds = stages.rerank.keptChunkIds;
   } else {
@@ -102,10 +118,13 @@ export async function runTrialPipeline(
       question: input.questionText,
       keptChunkIds,
       chunkMap,
+      costController: input.costController,
+      operationKey: `${operationPrefix}:generation`,
       onCost: input.onCost,
     });
     stages.generation = gen.stage;
     answer = gen.answer;
+    await input.onStageComplete?.("generation", gen.stage, answer);
   } else {
     keptChunkIds = stages.generation.contextChunkIds;
   }
@@ -126,8 +145,11 @@ export async function runTrialPipeline(
       question: input.questionText,
       referenceAnswer: input.referenceAnswer,
       candidate: answer,
+      costController: input.costController,
+      operationPrefix: `${operationPrefix}:judge`,
       onCost: input.onCost,
     });
+    await input.onStageComplete?.("judge", stages.judge);
   }
 
   const weights = input.judgeWeights ?? {

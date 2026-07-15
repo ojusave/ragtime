@@ -1,5 +1,7 @@
 import type { Extractor } from "../ports.js";
 
+const SAFE_FETCH_MODULE = "./safe-fetch.js";
+
 export const htmlTextExtractor: Extractor = {
   async extract({ sourceType, rawText, sourceUri }) {
     if (sourceType === "upload") {
@@ -7,13 +9,13 @@ export const htmlTextExtractor: Extractor = {
       return rawText;
     }
     if (!sourceUri) throw new Error("URL document missing source_uri");
+    // This adapter is also re-exported from the browser-facing core entry point.
+    // Keep Node's networking modules behind the server-only execution path.
+    const { fetchPublicUrlText } = (await import(
+      /* @vite-ignore */ SAFE_FETCH_MODULE
+    )) as typeof import("./safe-fetch.js");
+    const html = await fetchPublicUrlText(sourceUri);
     const { convert } = await import("html-to-text");
-    const res = await fetch(sourceUri, {
-      headers: { "User-Agent": "RAGtime/1.0 (document ingestion)" },
-      signal: AbortSignal.timeout(30_000),
-    });
-    if (!res.ok) throw new Error(`Fetch failed ${res.status}: ${sourceUri}`);
-    const html = await res.text();
     return convert(html, { wordwrap: false });
   },
 };

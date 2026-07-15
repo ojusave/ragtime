@@ -32,6 +32,22 @@ export function emitEvent(
     });
 }
 
+/** Awaited event append for state transitions and other required audit events. */
+export async function appendRunEvent(
+  db: Db,
+  runId: string,
+  type: RunEventType,
+  payload: Record<string, unknown> = {},
+  entityId?: string
+): Promise<void> {
+  await db.insert(runEvents).values({
+    runId,
+    type,
+    entityId: entityId ?? null,
+    payload,
+  });
+}
+
 export async function listRunEvents(
   db: Db,
   runId: string,
@@ -46,10 +62,23 @@ export async function listRunEvents(
     entity_id: string | null;
     payload: Record<string, unknown>;
   }>(sql`
-    SELECT id, run_id, at, type, entity_id, payload
-    FROM run_events
-    WHERE run_id = ${runId} AND id > ${afterId}
-    ORDER BY id ASC
+    SELECT e.id, e.run_id, e.at, e.type, e.entity_id, e.payload
+    FROM run_events e
+    WHERE e.run_id = ${runId}
+      AND e.id > ${afterId}
+      AND (
+        e.type NOT IN ('trial.stage', 'trial.retry', 'chaos.injected')
+        OR EXISTS (
+          SELECT 1
+          FROM trials t
+          JOIN runs r ON r.id = t.run_id
+          WHERE t.id = e.entity_id
+            AND t.run_id = e.run_id
+            AND jsonb_typeof(r.config->'questionIds') = 'array'
+            AND (r.config->'questionIds') ? t.question_id::text
+        )
+      )
+    ORDER BY e.id ASC
     LIMIT ${limit}
   `);
 }
@@ -114,9 +143,13 @@ export async function getPhaseCounters(db: Db, runId: string, corpusId: string) 
   }
 
   const trials = await db.execute<{ status: string; count: string }>(sql`
-    SELECT status, COUNT(*)::text AS count
-    FROM trials WHERE run_id = ${runId}
-    GROUP BY status
+    SELECT t.status, COUNT(*)::text AS count
+    FROM trials t
+    JOIN runs r ON r.id = t.run_id
+    WHERE t.run_id = ${runId}
+      AND jsonb_typeof(r.config->'questionIds') = 'array'
+      AND (r.config->'questionIds') ? t.question_id::text
+    GROUP BY t.status
   `);
 
   return {

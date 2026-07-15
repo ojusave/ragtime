@@ -1,7 +1,18 @@
+import { createHash } from "node:crypto";
 import { task } from "@renderinc/sdk/workflows";
 import { eq, sql } from "drizzle-orm";
-import { extractAndChunk, embedChunkBatch as pipelineEmbedBatch } from "@ragtime/core";
-import { getDb, schema, addCost, emitEvent, getMissingChunkIdsForModel } from "@ragtime/db";
+import {
+  extractAndChunk,
+  embedChunkBatch as pipelineEmbedBatch,
+  safePersistedError,
+} from "@ragtime/core";
+import {
+  createRunCostController,
+  getDb,
+  schema,
+  emitEvent,
+  getMissingChunkIdsForModel,
+} from "@ragtime/db";
 import { getAppConfig } from "@ragtime/core";
 import { wirePorts } from "../wiring.js";
 import { maybeChaos, chunkIntoBatches } from "../lib/chaos.js";
@@ -46,7 +57,7 @@ export const ingestDocument = task(
       }
       return { chunkCount: parts.length };
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
+      const message = safePersistedError(err, "Document ingestion failed");
       await db.update(documents).set({ status: "failed", error: message }).where(eq(documents.id, documentId));
       throw err;
     }
@@ -69,6 +80,17 @@ export const embedChunkBatch = task(
     maybeChaos();
     const db = getDb();
     const ports = wirePorts();
+    const { maxProviderCallUsd } = getAppConfig();
+    const costController = createRunCostController(
+      db,
+      args.runId,
+      maxProviderCallUsd
+    );
+    const batchKey = createHash("sha256")
+      .update(args.model)
+      .update("\0")
+      .update([...args.chunkIds].sort().join(","))
+      .digest("hex");
 
     const result = await pipelineEmbedBatch({
       gateway: ports.gateway,
@@ -76,9 +98,8 @@ export const embedChunkBatch = task(
       corpusId: args.corpusId,
       embeddingModel: args.model,
       chunkIds: args.chunkIds,
-      onCost: (usd) => {
-        void addCost(db, args.runId, usd);
-      },
+      costController,
+      operationKey: `corpus:${args.corpusId}:${batchKey}`,
     });
 
     emitEvent(db, args.runId, "embed.batch", {

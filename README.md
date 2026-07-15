@@ -8,8 +8,8 @@ RAGtime is an open-source template that answers one question: **which combinatio
 
 - **One OpenRouter key** for embeddings, rerank, chat, and judging with per-stage cost receipts
 - **Render Workflows fan-out**: hundreds of parallel trial tasks with automatic retries
-- **Resumable stages**: `trials.stages` jsonb skips completed work on retry (no double billing)
-- **Budget guard**: atomic per-run spend ceiling (`MAX_RUN_BUDGET_USD`)
+- **Resumable stages**: `trials.stages` checkpoints completed work so retries skip persisted stages
+- **Budget guard**: pre-call reservations and an idempotent cost ledger enforce the per-run ceiling
 - **Live catalog**: model pickers from `GET /models`, no hardcoded slugs in app code
 - **Query inspector**: single-query SSE pipeline view using the same stage functions as the arena
 - **Ports and adapters**: swap OpenRouter, pgvector, or the judge in two `wiring.ts` files
@@ -207,6 +207,7 @@ Use `packages/gateway-fake` as a reference for deterministic, zero-cost behavior
 | `WORKFLOW_SLUG` | `ragtime-workflows` | `{slug}/{task_name}` prefix |
 | `JUDGE_MODEL` | (from run config) | Default judge if not set per run |
 | `MAX_RUN_BUDGET_USD` | `5` | Hard per-run ceiling |
+| `MAX_PROVIDER_CALL_USD` | `0.5` | Maximum amount reserved and adapter-enforced for one provider call |
 | `EMBED_BATCH_SIZE` | `64` | Texts per embeddings API call |
 | `CHAOS_FAILURE_RATE` | `0` | Probability of pre-spend task failure (0 to 1) |
 
