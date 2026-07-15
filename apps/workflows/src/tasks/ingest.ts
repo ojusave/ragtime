@@ -39,6 +39,11 @@ export const ingestDocument = task(
         sourceUri: doc.sourceUri,
       });
 
+      // REVIEW M6 (Medium): delete + insert + status update are not transactional. A
+      // crash between delete and insert leaves a chunkless document, and two overlapping
+      // ingestion attempts can interleave (one deletes the other's fresh chunks). Wrap in
+      // db.transaction and add an ingestion claim/version so stale retries can't clobber
+      // a newer successful attempt.
       await ports.vectorStore.deleteAndInsertChunks(documentId, doc.corpusId, parts);
       await db.update(documents).set({ status: "ready", rawText: text, error: null }).where(eq(documents.id, documentId));
       if (args.runId) {
@@ -47,6 +52,9 @@ export const ingestDocument = task(
       return { chunkCount: parts.length };
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
+      // REVIEW M4 (Medium): persists raw error text, which for URL ingestion includes the
+      // full source URL (possibly with credentials in the query string). Redact
+      // userinfo/query and store a bounded, safe message; keep full details in logs only.
       await db.update(documents).set({ status: "failed", error: message }).where(eq(documents.id, documentId));
       throw err;
     }
@@ -76,6 +84,10 @@ export const embedChunkBatch = task(
       corpusId: args.corpusId,
       embeddingModel: args.model,
       chunkIds: args.chunkIds,
+      // REVIEW C1/H4 (Critical/High): fire-and-forget spend recording for embeddings,
+      // and this spend is later dropped entirely when aggregateRun recomputes the total
+      // from trial stages only. Await the cost write and record it in a durable run-level
+      // ledger that aggregation sums.
       onCost: (usd) => {
         void addCost(db, args.runId, usd);
       },

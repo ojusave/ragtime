@@ -11,6 +11,11 @@ export type RunEventType =
   | "chaos.injected"
   | "budget.tripped";
 
+// REVIEW L4 (Low): fire-and-forget is fine for telemetry, but this is also used for
+// terminal run-status transitions and budget trips — the process can exit before the
+// insert lands, and ordering vs. status updates isn't guaranteed, leaving the UI missing
+// terminal events. Split into an awaited appendRequiredEvent (terminal transitions,
+// budget trips) and this best-effort variant for the rest.
 /** Fire-and-forget event append. Never throws to caller. */
 export function emitEvent(
   db: Db,

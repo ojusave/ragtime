@@ -26,6 +26,10 @@ export type RunTrialPipelineInput = {
   judgeWeights?: JudgeWeights;
   existingStages?: TrialStages;
   existingAnswer?: string | null;
+  // REVIEW C1 (Critical): a void callback forces callers into fire-and-forget cost
+  // recording. Make this `(usd: number) => Promise<void>` and await it at every call
+  // site — or better, a budget port the pipeline must reserve against before each paid
+  // stage.
   onCost?: (usd: number) => void;
 };
 
@@ -39,6 +43,11 @@ export async function runTrialPipeline(
   input: RunTrialPipelineInput
 ): Promise<RunTrialPipelineResult> {
   const { ports } = input;
+  // REVIEW C3 (Critical): `stages` is resume-aware but purely in-memory — nothing is
+  // persisted until the caller writes the whole object after judge succeeds. Any failure
+  // mid-pipeline discards completed (billed) stages, so retries re-bill rerank/generation.
+  // Add a per-stage checkpoint hook (e.g. onStageComplete: (name, value) => Promise<void>)
+  // the workflow can use to save each stage as it finishes.
   let stages: TrialStages = { ...(input.existingStages ?? {}) };
 
   if (!stages.retrieval) {

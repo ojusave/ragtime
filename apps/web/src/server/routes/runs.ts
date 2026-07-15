@@ -52,6 +52,12 @@ export function registerRunRoutes(app: FastifyInstance): void {
       }
     }
 
+    // REVIEW M8 (Medium): no idempotency key — a client retry after a timeout creates a
+    // second run and a second workflow. Accept an Idempotency-Key, store
+    // (session_id, key) -> run_id uniquely, and return the existing run on conflict.
+    // REVIEW M9 (Medium): the combo product is built and inserted before the trial-limit
+    // check below; oversized/duplicate model arrays cause writes then delete-rollback.
+    // Cap and dedupe arrays in the schema, and compute trialCount before any insert.
     const [run] = await db
       .insert(runs)
       .values({
@@ -122,6 +128,9 @@ export function registerRunRoutes(app: FastifyInstance): void {
           error: err instanceof Error ? err.message : String(err),
         })
         .where(eq(runs.id, run!.id));
+      // REVIEW M4 (Medium): raw upstream error messages are persisted and returned to
+      // the anonymous caller; they can carry internal diagnostics. Map to a safe public
+      // message and log the details server-side.
       return reply.status(502).send({
         error:
           err instanceof Error
@@ -203,6 +212,12 @@ export function registerRunRoutes(app: FastifyInstance): void {
     const run = await getOwnedRun(db, req.params.id, sessionId);
     if (!run) return reply.status(404).send({ error: "Not found" });
 
+    // REVIEW C4 (Critical): cancel only flips the DB flag — in-flight ingest/embed/trial
+    // tasks keep running and spending, and the orchestrator's unconditional status
+    // writes later overwrite 'canceled' with 'running'/'complete'. Make orchestrator
+    // transitions conditional on non-terminal status, propagate cancellation into the
+    // pipeline (abort signal / Render task cancel), and make this endpoint idempotent
+    // (return the existing terminal state instead of overwriting it).
     await db
       .update(runs)
       .set({ status: "canceled", finishedAt: new Date() })

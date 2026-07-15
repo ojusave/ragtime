@@ -27,6 +27,15 @@ export function createOpenRouterGateway(options?: {
       } catch (err) {
         lastError = err;
         const status = (err as { status?: number }).status;
+        // REVIEW M3 (Medium): `status === undefined` retries everything without a status
+        // — JSON parse errors and programmer errors included — up to 5 times. There is
+        // also no per-request timeout on the fetch below (a hung request stalls the
+        // workflow), Retry-After HTTP-date values become NaN, and a large numeric
+        // Retry-After sleeps unboundedly. Classify errors explicitly (retry 429/5xx/
+        // network timeouts only), add AbortSignal.timeout per request, and cap both the
+        // Retry-After delay and total retry time. For paid POSTs, note the provider may
+        // have accepted a request even when the client lost the response — pair retries
+        // with stage-level dedup (C3).
         const retryable =
           status === 429 || (status !== undefined && status >= 500) || status === undefined;
         if (!retryable || attempt === 4) break;
@@ -50,6 +59,10 @@ export function createOpenRouterGateway(options?: {
       });
       if (!res.ok) {
         const text = await res.text();
+        // REVIEW M4 (Medium): the raw upstream body is embedded in the error message,
+        // which flows into persisted trial/run/document error fields and API responses.
+        // Provider bodies can include internal diagnostics and prompt fragments — keep a
+        // bounded/safe public message and log the raw body server-side only.
         const err = new Error(`OpenRouter ${path}: ${res.status} ${text}`) as Error & {
           status?: number;
           retryAfter?: number;
@@ -64,6 +77,11 @@ export function createOpenRouterGateway(options?: {
   }
 
   return {
+    // REVIEW M1 (Medium): no token streaming — `stream: true` is never sent and the port
+    // only returns completed responses, so the inspector's SSE reports finished stages,
+    // not live deltas. Either document the SSE as "stage progress" or add a separate
+    // `chatStream(req, signal): AsyncIterable<ChatDelta>` port that parses OpenRouter SSE
+    // frames, keeping this complete-response path for judging/batch workflows.
     async chat(req) {
       const start = Date.now();
       const body: Record<string, unknown> = {
@@ -175,6 +193,10 @@ export function createOpenRouterGateway(options?: {
       };
 
       // GET /models defaults to output_modalities=text, which excludes embeddings and rerank.
+      // REVIEW M11 (Medium): a failed /embeddings/models call is silently coerced to an
+      // empty list, which the UI can't distinguish from "no embedding models exist". Return
+      // a typed catalog result with per-source warnings (or fail retryably) instead of
+      // swallowing the error.
       const [allModels, embeddingOnly] = await Promise.all([
         request<{ data?: ModelRow[] }>("/models?output_modalities=all"),
         request<{ data?: ModelRow[] }>("/embeddings/models").catch(() => ({ data: [] as ModelRow[] })),
@@ -197,6 +219,10 @@ export function createOpenRouterGateway(options?: {
           contextLength: m.context_length,
           pricing: m.pricing,
         };
+        // REVIEW M11 (Medium): ID-substring classification is heuristic — a rerank model
+        // without "rerank" in its slug is misclassified as chat, and vice versa. Prefer
+        // capability metadata and validate the selected model's capability before a paid
+        // run; keep substring matching only as a clearly-marked fallback.
         if (modalities.includes("embeddings") || m.id.includes("embedding")) {
           embedding.push(entry);
         } else if (modalities.includes("rerank") || m.id.includes("rerank")) {

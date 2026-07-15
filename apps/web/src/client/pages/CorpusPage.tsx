@@ -66,6 +66,11 @@ export default function CorpusPage() {
     queryFn: () => api<{ maxTrialsPerRun: number; maxRunBudgetUsd: number }>("/api/config"),
   });
 
+  // REVIEW H2 (High): every /api/corpora/* call on this page hits the 404 handler — no
+  // corpora route module is registered on the server, and this page isn't reachable from
+  // App.tsx's router. Either implement/register the server routes and add the React
+  // route, or remove this dead page and update the README so the supported surface is
+  // unambiguous.
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["corpus", id],
     queryFn: () =>

@@ -1,4 +1,8 @@
 /** Serializable port contracts. Adapters live in separate packages. */
+// REVIEW L3 (Low): the comment above isn't accurate — concrete adapters (htmlTextExtractor
+// in pipeline/extract.ts, the chunker) live inside packages/core and import third-party
+// libs directly. Either document core as shipping default adapters, or move them to an
+// adapter package (e.g. packages/ingestion) and construct them in wirePorts.
 
 export type Receipt = {
   latencyMs: number;

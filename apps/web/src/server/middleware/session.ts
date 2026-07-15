@@ -11,6 +11,11 @@ function attachSession(req: FastifyRequest, sessionId: string): SessionRequest {
 /** Attach an anonymous session id to every request via httpOnly cookie. */
 export function registerSessionMiddleware(app: FastifyInstance): void {
   app.addHook("onRequest", async (req, reply) => {
+    // REVIEW H5 (High): the cookie value is accepted verbatim, so the session id is an
+    // arbitrary client-chosen string, not an identity — deleting/rotating it mints
+    // unlimited fresh sessions, defeating any per-session quota. Sign the cookie
+    // server-side (and bound its length), and don't use it as the sole boundary for
+    // spend-bearing routes.
     const existing = req.cookies[SESSION_COOKIE];
     const sessionId = existing && existing.length > 0 ? existing : randomUUID();
 
