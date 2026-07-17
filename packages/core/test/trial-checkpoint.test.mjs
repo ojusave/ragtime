@@ -86,6 +86,28 @@ function baseInput(ports) {
   };
 }
 
+function createReplayController() {
+  const entries = new Map();
+  return {
+    async reserve(key) {
+      const entry = entries.get(key);
+      return entry
+        ? {
+            maxCostUsd: entry.maxCostUsd,
+            replayAvailable: true,
+            replayResult: entry.replayResult,
+          }
+        : { maxCostUsd: 0.25 };
+    },
+    async settle(key, _actualUsd, replayResult) {
+      entries.set(key, { maxCostUsd: 0.25, replayResult });
+    },
+    async release(key) {
+      entries.delete(key);
+    },
+  };
+}
+
 test("a generation checkpoint survives a later failure and prevents rebilling", async () => {
   const { calls, ports } = createHarness();
   const persisted = {};
@@ -120,5 +142,43 @@ test("a generation checkpoint survives a later failure and prevents rebilling", 
 
   assert.equal(result.answer, "Generated answer");
   assert.deepEqual(checkpoints, ["judge"]);
+  assert.deepEqual(calls, { embed: 1, chat: 1, score: 1 });
+});
+
+test("a settled provider result replays after a crash before its stage checkpoint", async () => {
+  const { calls, ports } = createHarness();
+  const costController = createReplayController();
+  const persisted = {};
+
+  await assert.rejects(
+    () =>
+      runTrialPipeline({
+        ...baseInput(ports),
+        costController,
+        async onStageComplete(stage, value) {
+          if (stage === "generation") {
+            throw new Error("crash before generation checkpoint");
+          }
+          persisted[stage] = value;
+        },
+      }),
+    /crash before generation checkpoint/
+  );
+
+  assert.deepEqual(Object.keys(persisted), ["retrieval"]);
+  assert.deepEqual(calls, { embed: 1, chat: 1, score: 0 });
+
+  const checkpoints = [];
+  const result = await runTrialPipeline({
+    ...baseInput(ports),
+    existingStages: persisted,
+    costController,
+    async onStageComplete(stage) {
+      checkpoints.push(stage);
+    },
+  });
+
+  assert.equal(result.answer, "Generated answer");
+  assert.deepEqual(checkpoints, ["generation", "judge"]);
   assert.deepEqual(calls, { embed: 1, chat: 1, score: 1 });
 });

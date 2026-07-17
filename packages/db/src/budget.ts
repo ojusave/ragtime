@@ -6,11 +6,13 @@ import { runCostEntries, runs } from "./schema.js";
 
 const ACTIVE_RUN_STATUSES = new Set(["draft", "ingesting", "running", "aggregating"]);
 const EPSILON_USD = 0.000001;
+export const COST_RESERVATION_LEASE_MS = 120_000;
 
 export class BudgetReservationError extends Error {
   constructor(
     message: string,
-    readonly runStatus: string
+    readonly runStatus: string,
+    readonly retryable = true
   ) {
     super(message);
     this.name = "BudgetReservationError";
@@ -28,8 +30,9 @@ export function createRunCostController(
   return {
     reserve: (operationKey, kind) =>
       reserveCost(db, runId, operationKey, kind, maxOperationUsd),
-    settle: (operationKey, actualUsd) =>
-      settleCost(db, runId, operationKey, actualUsd),
+    settle: (operationKey, actualUsd, replayResult) =>
+      settleCost(db, runId, operationKey, actualUsd, replayResult),
+    release: (operationKey) => releaseCost(db, runId, operationKey),
   };
 }
 
@@ -39,7 +42,11 @@ export async function reserveCost(
   operationKey: string,
   kind: CostOperationKind,
   maxOperationUsd: number
-): Promise<{ maxCostUsd: number }> {
+): Promise<{
+  maxCostUsd: number;
+  replayAvailable?: boolean;
+  replayResult?: unknown;
+}> {
   if (!operationKey || operationKey.length > 500) {
     throw new Error("Invalid cost operation key");
   }
@@ -58,7 +65,7 @@ export async function reserveCost(
     if (!run) throw new Error(`Run not found: ${runId}`);
 
     const existing = await tx
-      .select({ status: runCostEntries.status })
+      .select()
       .from(runCostEntries)
       .where(
         and(
@@ -67,12 +74,23 @@ export async function reserveCost(
         )
       )
       .limit(1);
-    if (existing[0]) {
+    const entry = existing[0];
+
+    if (entry?.status === "settled") {
+      if (entry.replayResult != null) {
+        return {
+          allowed: true as const,
+          maxCostUsd: Number(entry.reservedUsd),
+          replayAvailable: true,
+          replayResult: entry.replayResult,
+        };
+      }
       return {
         allowed: false as const,
         tripped: false,
+        retryable: false,
         status: run.status,
-        reason: `Cost operation ${operationKey} is already ${existing[0].status}`,
+        reason: `Cost operation ${operationKey} completed without a replayable result`,
       };
     }
 
@@ -80,6 +98,7 @@ export async function reserveCost(
       return {
         allowed: false as const,
         tripped: false,
+        retryable: false,
         status: run.status,
         reason: `Run is ${run.status}`,
       };
@@ -88,6 +107,54 @@ export async function reserveCost(
     const total = Number(run.total_cost_usd);
     const reserved = Number(run.reserved_cost_usd);
     const budget = Number(run.budget_usd);
+
+    if (entry?.status === "reserved") {
+      const expiresAt = entry.reservationExpiresAt?.getTime() ?? 0;
+      if (expiresAt > Date.now()) {
+        return {
+          allowed: false as const,
+          tripped: false,
+          retryable: true,
+          status: run.status,
+          reason: `Cost operation ${operationKey} is still in progress`,
+        };
+      }
+
+      const expiredCharge = Number(entry.reservedUsd);
+      const expiredTotal = total + expiredCharge;
+      const expiredReserved = Math.max(0, reserved - expiredCharge);
+      const exhausted = budget - expiredTotal < EPSILON_USD;
+      const nextStatus = exhausted ? "budget_exceeded" : run.status;
+      await tx
+        .update(runCostEntries)
+        .set({
+          actualUsd: String(expiredCharge),
+          replayResult: null,
+          reservationExpiresAt: null,
+          status: "settled",
+          updatedAt: new Date(),
+        })
+        .where(eq(runCostEntries.id, entry.id));
+      await tx
+        .update(runs)
+        .set({
+          totalCostUsd: String(expiredTotal),
+          reservedCostUsd: String(expiredReserved),
+          status: nextStatus,
+          finishedAt: exhausted ? new Date() : undefined,
+        })
+        .where(eq(runs.id, runId));
+      return {
+        allowed: false as const,
+        tripped: exhausted,
+        retryable: false,
+        status: nextStatus,
+        total: expiredTotal,
+        budget,
+        reason: `Cost operation ${operationKey} expired without a replayable result`,
+      };
+    }
+
     const available = budget - total - reserved;
     const reservation = Math.min(maxOperationUsd, available);
 
@@ -102,6 +169,7 @@ export async function reserveCost(
       return {
         allowed: false as const,
         tripped: exhaustedBySettledSpend,
+        retryable: !exhaustedBySettledSpend,
         status: exhaustedBySettledSpend ? "budget_exceeded" : run.status,
         total,
         budget,
@@ -111,13 +179,32 @@ export async function reserveCost(
       };
     }
 
-    await tx.insert(runCostEntries).values({
-      runId,
-      operationKey,
-      kind,
-      reservedUsd: String(reservation),
-      status: "reserved",
-    });
+    const reservationExpiresAt = new Date(
+      Date.now() + COST_RESERVATION_LEASE_MS
+    );
+    if (entry?.status === "released") {
+      await tx
+        .update(runCostEntries)
+        .set({
+          kind,
+          reservedUsd: String(reservation),
+          actualUsd: null,
+          replayResult: null,
+          reservationExpiresAt,
+          status: "reserved",
+          updatedAt: new Date(),
+        })
+        .where(eq(runCostEntries.id, entry.id));
+    } else {
+      await tx.insert(runCostEntries).values({
+        runId,
+        operationKey,
+        kind,
+        reservedUsd: String(reservation),
+        reservationExpiresAt,
+        status: "reserved",
+      });
+    }
     await tx
       .update(runs)
       .set({ reservedCostUsd: String(reserved + reservation) })
@@ -133,16 +220,25 @@ export async function reserveCost(
         budgetUsd: result.budget,
       });
     }
-    throw new BudgetReservationError(result.reason, result.status);
+    throw new BudgetReservationError(
+      result.reason,
+      result.status,
+      result.retryable
+    );
   }
-  return { maxCostUsd: result.maxCostUsd };
+  return {
+    maxCostUsd: result.maxCostUsd,
+    replayAvailable: result.replayAvailable,
+    replayResult: result.replayResult,
+  };
 }
 
 export async function settleCost(
   db: Db,
   runId: string,
   operationKey: string,
-  actualUsd: number
+  actualUsd: number,
+  replayResult?: unknown
 ): Promise<void> {
   if (!Number.isFinite(actualUsd) || actualUsd < 0) {
     throw new Error(`Invalid actual cost for ${operationKey}`);
@@ -173,7 +269,13 @@ export async function settleCost(
       .limit(1);
     const entry = entries[0];
     if (!entry) throw new Error(`Cost reservation not found: ${operationKey}`);
-    if (entry.status === "settled") return { tripped: false, total: Number(run.total_cost_usd), budget: Number(run.budget_usd) };
+    if (entry.status === "settled") {
+      return {
+        tripped: false,
+        total: Number(run.total_cost_usd),
+        budget: Number(run.budget_usd),
+      };
+    }
     if (entry.status !== "reserved") {
       throw new Error(`Cost reservation ${operationKey} is ${entry.status}`);
     }
@@ -190,7 +292,13 @@ export async function settleCost(
 
     await tx
       .update(runCostEntries)
-      .set({ actualUsd: String(actualUsd), status: "settled", updatedAt: new Date() })
+      .set({
+        actualUsd: String(actualUsd),
+        replayResult: replayResult ?? null,
+        reservationExpiresAt: null,
+        status: "settled",
+        updatedAt: new Date(),
+      })
       .where(eq(runCostEntries.id, entry.id));
 
     const nextStatus =
@@ -216,6 +324,55 @@ export async function settleCost(
       budgetUsd: result.budget,
     });
   }
+}
+
+export async function releaseCost(
+  db: Db,
+  runId: string,
+  operationKey: string
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    const runRows = await tx.execute<{
+      reserved_cost_usd: string;
+    }>(sql`
+      SELECT reserved_cost_usd FROM runs WHERE id = ${runId} FOR UPDATE
+    `);
+    const run = runRows[0];
+    if (!run) throw new Error(`Run not found: ${runId}`);
+
+    const entries = await tx
+      .select()
+      .from(runCostEntries)
+      .where(
+        and(
+          eq(runCostEntries.runId, runId),
+          eq(runCostEntries.operationKey, operationKey)
+        )
+      )
+      .limit(1);
+    const entry = entries[0];
+    if (!entry || entry.status === "released") return;
+    if (entry.status !== "reserved") return;
+
+    const reserved = Math.max(
+      0,
+      Number(run.reserved_cost_usd) - Number(entry.reservedUsd)
+    );
+    await tx
+      .update(runCostEntries)
+      .set({
+        actualUsd: null,
+        replayResult: null,
+        reservationExpiresAt: null,
+        status: "released",
+        updatedAt: new Date(),
+      })
+      .where(eq(runCostEntries.id, entry.id));
+    await tx
+      .update(runs)
+      .set({ reservedCostUsd: String(reserved) })
+      .where(eq(runs.id, runId));
+  });
 }
 
 export async function getRunStatus(db: Db, runId: string): Promise<string | null> {

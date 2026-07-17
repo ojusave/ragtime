@@ -151,12 +151,26 @@ export async function migrate(): Promise<void> {
       kind text NOT NULL,
       reserved_usd numeric(12, 6) NOT NULL CHECK (reserved_usd >= 0),
       actual_usd numeric(12, 6) CHECK (actual_usd IS NULL OR actual_usd >= 0),
+      replay_result jsonb,
+      reservation_expires_at timestamptz,
       status text NOT NULL DEFAULT 'reserved'
         CHECK (status IN ('reserved', 'settled', 'released')),
       created_at timestamptz NOT NULL DEFAULT now(),
       updated_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE (run_id, operation_key)
     )
+  `);
+  await db.execute(sql`
+    ALTER TABLE run_cost_entries ADD COLUMN IF NOT EXISTS replay_result jsonb
+  `);
+  await db.execute(sql`
+    ALTER TABLE run_cost_entries
+      ADD COLUMN IF NOT EXISTS reservation_expires_at timestamptz
+  `);
+  await db.execute(sql`
+    UPDATE run_cost_entries
+    SET reservation_expires_at = updated_at + interval '2 minutes'
+    WHERE status = 'reserved' AND reservation_expires_at IS NULL
   `);
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS run_cost_entries_run_status_idx
