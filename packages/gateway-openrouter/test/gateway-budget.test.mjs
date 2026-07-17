@@ -111,6 +111,82 @@ test("missing embedding cost is recovered from generation metadata", async () =>
   assert.equal(urls.length, 2);
 });
 
+test("delayed generation metadata is polled without losing a successful completion", async () => {
+  let metadataAttempts = 0;
+  await withMockFetch(
+    async (url) => {
+      if (String(url).includes("/generation?")) {
+        metadataAttempts += 1;
+        if (metadataAttempts < 3) {
+          return new Response(
+            JSON.stringify({ error: { message: "Generation not found" } }),
+            { status: 404, headers: { "content-type": "application/json" } }
+          );
+        }
+        return new Response(
+          JSON.stringify({ data: { total_cost: 0.015 } }),
+          { status: 200, headers: { "content-type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          id: "gen-delayed",
+          choices: [{ message: { content: "ok" } }],
+          usage: { prompt_tokens: 2, completion_tokens: 1 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    },
+    async () => {
+      const gateway = createOpenRouterGateway({ apiKey: "test-key" });
+      const result = await gateway.chat({
+        model: "test/model",
+        messages: [{ role: "user", content: "hello" }],
+        maxCostUsd: 0.2,
+      });
+      assert.equal(result.text, "ok");
+      assert.equal(result.receipt.costUsd, 0.015);
+      assert.equal(result.receipt.costUnknown, false);
+    }
+  );
+  assert.equal(metadataAttempts, 3);
+});
+
+test("missing generation metadata returns the paid result with unknown cost", async () => {
+  let metadataAttempts = 0;
+  await withMockFetch(
+    async (url) => {
+      if (String(url).includes("/generation?")) {
+        metadataAttempts += 1;
+        return new Response(
+          JSON.stringify({ error: { message: "Generation not found" } }),
+          { status: 404, headers: { "content-type": "application/json" } }
+        );
+      }
+      return new Response(
+        JSON.stringify({
+          id: "gen-missing",
+          choices: [{ message: { content: "ok" } }],
+          usage: { prompt_tokens: 2, completion_tokens: 1 },
+        }),
+        { status: 200, headers: { "content-type": "application/json" } }
+      );
+    },
+    async () => {
+      const gateway = createOpenRouterGateway({ apiKey: "test-key" });
+      const result = await gateway.chat({
+        model: "test/model",
+        messages: [{ role: "user", content: "hello" }],
+        maxCostUsd: 0.2,
+      });
+      assert.equal(result.text, "ok");
+      assert.equal(result.receipt.costUsd, 0);
+      assert.equal(result.receipt.costUnknown, true);
+    }
+  );
+  assert.equal(metadataAttempts, 4);
+});
+
 test("provider error bodies are not exposed and paid errors are not retried", async () => {
   let attempts = 0;
   await withMockFetch(
@@ -132,6 +208,7 @@ test("provider error bodies are not exposed and paid errors are not retried", as
         (error) => {
           assert.match(error.message, /HTTP 503/);
           assert.doesNotMatch(error.message, /secret prompt/);
+          assert.equal(error.billingAmbiguous, true);
           return true;
         }
       );

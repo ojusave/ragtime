@@ -221,6 +221,10 @@ export const runCostEntries = pgTable(
     kind: text("kind").notNull(),
     reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).notNull(),
     actualUsd: numeric("actual_usd", { precision: 12, scale: 6 }),
+    replayResult: jsonb("replay_result").$type<unknown>(),
+    reservationExpiresAt: timestamp("reservation_expires_at", {
+      withTimezone: true,
+    }),
     status: text("status").notNull().default("reserved"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

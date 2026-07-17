@@ -68,8 +68,17 @@ export interface CostController {
   reserve(
     operationKey: string,
     kind: CostOperationKind
-  ): Promise<{ maxCostUsd: number }>;
-  settle(operationKey: string, actualUsd: number): Promise<void>;
+  ): Promise<{
+    maxCostUsd: number;
+    replayAvailable?: boolean;
+    replayResult?: unknown;
+  }>;
+  settle(
+    operationKey: string,
+    actualUsd: number,
+    replayResult?: unknown
+  ): Promise<void>;
+  release(operationKey: string): Promise<void>;
 }
 
 export type ChunkRecord = {
