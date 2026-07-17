@@ -21,6 +21,8 @@ export function getAppConfig() {
     openRouterAppTitle: envString("OPENROUTER_APP_TITLE", "RAGtime"),
     judgeModel: process.env.JUDGE_MODEL ?? "",
     maxRunBudgetUsd: envNumber("MAX_RUN_BUDGET_USD", 5),
+    /** Adapter-enforced maximum charge reserved for any single provider call. */
+    maxProviderCallUsd: envNumber("MAX_PROVIDER_CALL_USD", 0.5),
     embedBatchSize: envNumber("EMBED_BATCH_SIZE", 64),
     /** Max parallel workflow subtasks when embedding a corpus (per model). */
     embedFanoutBatch: envNumber("EMBED_FANOUT_BATCH", 6),

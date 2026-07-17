@@ -32,6 +32,8 @@ services:
         value: ragtime-workflows
       - key: MAX_RUN_BUDGET_USD
         value: "5"
+      - key: MAX_PROVIDER_CALL_USD
+        value: "0.5"
       - key: EMBED_BATCH_SIZE
         value: "64"
       - key: DB_POOL_MAX

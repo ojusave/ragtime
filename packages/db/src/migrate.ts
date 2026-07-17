@@ -83,6 +83,7 @@ export async function migrate(): Promise<void> {
       config jsonb NOT NULL,
       budget_usd numeric NOT NULL,
       total_cost_usd numeric NOT NULL DEFAULT 0,
+      reserved_cost_usd numeric NOT NULL DEFAULT 0,
       started_at timestamptz,
       finished_at timestamptz,
       error text,
@@ -113,10 +114,76 @@ export async function migrate(): Promise<void> {
       answer text,
       overall_score numeric,
       attempts int NOT NULL DEFAULT 0,
+      claim_token uuid,
+      lease_expires_at timestamptz,
       error text,
       updated_at timestamptz NOT NULL DEFAULT now(),
       UNIQUE (combo_id, question_id)
     )
+  `);
+
+  await db.execute(sql`
+    ALTER TABLE runs
+      ADD COLUMN IF NOT EXISTS reserved_cost_usd numeric NOT NULL DEFAULT 0
+  `);
+  await db.execute(sql`
+    ALTER TABLE trials ADD COLUMN IF NOT EXISTS claim_token uuid
+  `);
+  await db.execute(sql`
+    ALTER TABLE trials ADD COLUMN IF NOT EXISTS lease_expires_at timestamptz
+  `);
+  await db.execute(sql`
+    UPDATE trials
+    SET
+      claim_token = COALESCE(claim_token, gen_random_uuid()),
+      lease_expires_at = COALESCE(
+        lease_expires_at,
+        now() + interval '5 minutes'
+      )
+    WHERE status = 'running'
+      AND (claim_token IS NULL OR lease_expires_at IS NULL)
+  `);
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS run_cost_entries (
+      id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+      run_id uuid NOT NULL REFERENCES runs(id) ON DELETE CASCADE,
+      operation_key text NOT NULL,
+      kind text NOT NULL,
+      reserved_usd numeric(12, 6) NOT NULL CHECK (reserved_usd >= 0),
+      actual_usd numeric(12, 6) CHECK (actual_usd IS NULL OR actual_usd >= 0),
+      status text NOT NULL DEFAULT 'reserved'
+        CHECK (status IN ('reserved', 'settled', 'released')),
+      created_at timestamptz NOT NULL DEFAULT now(),
+      updated_at timestamptz NOT NULL DEFAULT now(),
+      UNIQUE (run_id, operation_key)
+    )
+  `);
+  await db.execute(sql`
+    CREATE INDEX IF NOT EXISTS run_cost_entries_run_status_idx
+      ON run_cost_entries (run_id, status)
+  `);
+  await db.execute(sql`
+    INSERT INTO run_cost_entries (
+      run_id,
+      operation_key,
+      kind,
+      reserved_usd,
+      actual_usd,
+      status
+    )
+    SELECT
+      r.id,
+      'legacy:total_cost_usd',
+      'legacy_total',
+      0,
+      r.total_cost_usd,
+      'settled'
+    FROM runs r
+    WHERE r.total_cost_usd > 0
+      AND NOT EXISTS (
+        SELECT 1 FROM run_cost_entries e WHERE e.run_id = r.id
+      )
+    ON CONFLICT (run_id, operation_key) DO NOTHING
   `);
 
   await db.execute(sql`
@@ -144,6 +211,65 @@ export async function migrate(): Promise<void> {
   `);
   await db.execute(sql`
     CREATE INDEX IF NOT EXISTS runs_session_id_idx ON runs (session_id)
+  `);
+  await db.execute(sql`
+    UPDATE runs r
+    SET config = jsonb_set(
+      r.config,
+      '{questionIds}',
+      COALESCE(
+        (
+          SELECT jsonb_agg(q.id ORDER BY q.id)
+          FROM questions q
+          WHERE q.corpus_id = r.corpus_id
+            AND (q.session_id IS NULL OR q.session_id = r.session_id)
+        ),
+        '[]'::jsonb
+      ),
+      true
+    )
+    WHERE r.config->>'questionIds' = 'all'
+  `);
+  await db.execute(sql`
+    DELETE FROM run_events e
+    USING runs r
+    WHERE e.run_id = r.id
+      AND e.type IN ('trial.stage', 'trial.retry', 'chaos.injected')
+      AND jsonb_typeof(r.config->'questionIds') = 'array'
+      AND NOT EXISTS (
+        SELECT 1
+        FROM trials t
+        WHERE t.id = e.entity_id
+          AND t.run_id = r.id
+          AND (r.config->'questionIds') ? t.question_id::text
+      )
+  `);
+  await db.execute(sql`
+    DELETE FROM query_embeddings qe
+    USING runs r
+    WHERE qe.run_id = r.id
+      AND jsonb_typeof(r.config->'questionIds') = 'array'
+      AND NOT ((r.config->'questionIds') ? qe.question_id::text)
+  `);
+  await db.execute(sql`
+    DELETE FROM trials t
+    USING runs r
+    WHERE t.run_id = r.id
+      AND jsonb_typeof(r.config->'questionIds') = 'array'
+      AND NOT ((r.config->'questionIds') ? t.question_id::text)
+  `);
+  await db.execute(sql`
+    UPDATE runs
+    SET
+      status = 'failed',
+      error = 'Question snapshot was outside supported limits during migration',
+      finished_at = COALESCE(finished_at, now())
+    WHERE status IN ('draft', 'ingesting', 'running', 'aggregating')
+      AND jsonb_typeof(config->'questionIds') = 'array'
+      AND (
+        jsonb_array_length(config->'questionIds') = 0
+        OR jsonb_array_length(config->'questionIds') > 1000
+      )
   `);
 
   await db.execute(sql`
@@ -176,7 +302,11 @@ export async function migrate(): Promise<void> {
       COUNT(*) FILTER (WHERE t.status = 'complete') AS complete_count,
       COUNT(*) FILTER (WHERE t.status = 'failed') AS failed_count
     FROM combos c
-    LEFT JOIN trials t ON t.combo_id = c.id
+    JOIN runs r ON r.id = c.run_id
+    LEFT JOIN trials t
+      ON t.combo_id = c.id
+      AND jsonb_typeof(r.config->'questionIds') = 'array'
+      AND (r.config->'questionIds') ? t.question_id::text
     GROUP BY c.id, c.run_id, c.embedding_model, c.rerank_model, c.gen_model
   `);
 

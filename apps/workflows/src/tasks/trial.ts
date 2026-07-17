@@ -1,11 +1,28 @@
+import { randomUUID } from "node:crypto";
 import { task } from "@renderinc/sdk/workflows";
-import { eq, sql } from "drizzle-orm";
-import { runTrialPipeline, runConfigSchema } from "@ragtime/core";
-import { getDb, schema, addCost, emitEvent } from "@ragtime/db";
+import { and, eq, inArray } from "drizzle-orm";
+import {
+  getAppConfig,
+  runTrialPipeline,
+  runConfigSchema,
+  safePersistedError,
+} from "@ragtime/core";
+import {
+  BudgetReservationError,
+  claimTrial,
+  checkpointTrialStage,
+  createRunCostController,
+  emitEvent,
+  getDb,
+  getRunStatus,
+  schema,
+} from "@ragtime/db";
 import { wirePorts } from "../wiring.js";
 import { maybeChaos, ChaosError } from "../lib/chaos.js";
 
 const { runs, trials, questions, combos } = schema;
+export const TRIAL_LEASE_MS = 300_000;
+export const MAX_TRIAL_ATTEMPTS = 4;
 
 export const runTrial = task(
   {
@@ -19,47 +36,97 @@ export const runTrial = task(
     const db = getDb();
     const ports = wirePorts();
 
-    const trial = await db.query.trials.findFirst({ where: eq(trials.id, trialId) });
-    if (!trial) throw new Error(`Trial not found: ${trialId}`);
-    if (trial.status === "complete") {
-      return { score: trial.overallScore ? Number(trial.overallScore) : null };
+    const initial = await db.query.trials.findFirst({
+      where: eq(trials.id, trialId),
+    });
+    if (!initial) throw new Error(`Trial not found: ${trialId}`);
+    if (initial.status === "complete") {
+      return {
+        score:
+          initial.overallScore != null ? Number(initial.overallScore) : null,
+      };
     }
 
-    const run = await db.query.runs.findFirst({ where: eq(runs.id, trial.runId) });
-    if (!run) throw new Error(`Run not found: ${trial.runId}`);
-
+    const run = await db.query.runs.findFirst({
+      where: eq(runs.id, initial.runId),
+    });
+    if (!run) throw new Error(`Run not found: ${initial.runId}`);
     if (run.status === "canceled" || run.status === "budget_exceeded") {
-      await db.update(trials).set({ status: "skipped", updatedAt: new Date() }).where(eq(trials.id, trialId));
+      await db
+        .update(trials)
+        .set({ status: "skipped", updatedAt: new Date() })
+        .where(and(eq(trials.id, trialId), eq(trials.status, "pending")));
       return { score: null };
     }
 
     const config = runConfigSchema.parse(run.config);
-    const combo = await db.query.combos.findFirst({ where: eq(combos.id, trial.comboId) });
-    if (!combo) throw new Error(`Combo not found: ${trial.comboId}`);
-
-    const question = await db.query.questions.findFirst({ where: eq(questions.id, trial.questionId) });
-    if (!question) throw new Error(`Question not found: ${trial.questionId}`);
-
-    const prevAttempts = trial.attempts;
-    await db
-      .update(trials)
-      .set({
-        status: "running",
-        attempts: sql`${trials.attempts} + 1`,
-        updatedAt: new Date(),
-      })
-      .where(eq(trials.id, trialId));
-
-    if (prevAttempts > 0) {
-      emitEvent(db, trial.runId, "trial.retry", { trialId, attempt: prevAttempts + 1 }, trialId);
+    if (
+      config.questionIds === "all" ||
+      !config.questionIds.includes(initial.questionId)
+    ) {
+      await db
+        .update(trials)
+        .set({ status: "skipped", updatedAt: new Date() })
+        .where(
+          and(
+            eq(trials.id, trialId),
+            inArray(trials.status, ["pending", "failed"])
+          )
+      );
+      return { score: null };
     }
+    const combo = await db.query.combos.findFirst({
+      where: eq(combos.id, initial.comboId),
+    });
+    if (!combo) throw new Error(`Combo not found: ${initial.comboId}`);
+    const question = await db.query.questions.findFirst({
+      where: eq(questions.id, initial.questionId),
+    });
+    if (!question) throw new Error(`Question not found: ${initial.questionId}`);
+
+    const claimToken = randomUUID();
+    const claimed = await claimTrial({
+      db,
+      trialId,
+      claimToken,
+      leaseMs: TRIAL_LEASE_MS,
+      maxAttempts: MAX_TRIAL_ATTEMPTS,
+    });
+    if (!claimed) {
+      const current = await db.query.trials.findFirst({
+        where: eq(trials.id, trialId),
+      });
+      return {
+        score:
+          current?.status === "complete" && current.overallScore != null
+            ? Number(current.overallScore)
+            : null,
+      };
+    }
+
+    if (claimed.attempts > 1) {
+      emitEvent(
+        db,
+        claimed.runId,
+        "trial.retry",
+        { trialId, attempt: claimed.attempts },
+        trialId
+      );
+    }
+
+    const { maxProviderCallUsd } = getAppConfig();
+    const costController = createRunCostController(
+      db,
+      claimed.runId,
+      maxProviderCallUsd
+    );
 
     try {
       const result = await runTrialPipeline({
         ports,
-        runId: trial.runId,
+        runId: claimed.runId,
         corpusId: run.corpusId,
-        questionId: trial.questionId,
+        questionId: claimed.questionId,
         questionText: question.text,
         referenceAnswer: question.referenceAnswer,
         embeddingModel: combo.embeddingModel,
@@ -70,41 +137,87 @@ export const runTrial = task(
         relevanceThreshold: combo.relevanceThreshold
           ? Number(combo.relevanceThreshold)
           : null,
-        judgeModel: config.judgeModel ?? process.env.JUDGE_MODEL ?? "openai/gpt-4o-mini",
+        judgeModel:
+          config.judgeModel ??
+          process.env.JUDGE_MODEL ??
+          "openai/gpt-4o-mini",
         judgeWeights: config.judgeWeights,
-        existingStages: trial.stages ?? {},
-        existingAnswer: trial.answer,
-        onCost: (usd) => {
-          void addCost(db, trial.runId, usd);
+        existingStages: claimed.stages ?? {},
+        existingAnswer: claimed.answer,
+        costController,
+        operationPrefix: `trial:${trialId}`,
+        onStageComplete: async (stage, value, answer) => {
+          const saved = await checkpointTrialStage({
+            db,
+            trialId,
+            claimToken,
+            stage,
+            value,
+            answer,
+            leaseMs: TRIAL_LEASE_MS,
+          });
+          if (!saved) throw new Error(`Trial claim lost: ${trialId}`);
+          emitEvent(
+            db,
+            claimed.runId,
+            "trial.stage",
+            { trialId, stage, data: value },
+            trialId
+          );
         },
       });
 
-      for (const [stage, data] of Object.entries(result.stages)) {
-        emitEvent(db, trial.runId, "trial.stage", { trialId, stage, data }, trialId);
-      }
-
-      await db
+      const [completed] = await db
         .update(trials)
         .set({
           stages: result.stages,
           answer: result.answer,
           overallScore: String(result.overallScore),
           status: "complete",
+          claimToken: null,
+          leaseExpiresAt: null,
           error: null,
           updatedAt: new Date(),
         })
-        .where(eq(trials.id, trialId));
-
+        .where(
+          and(
+            eq(trials.id, trialId),
+            eq(trials.claimToken, claimToken),
+            eq(trials.status, "running")
+          )
+        )
+        .returning({ id: trials.id });
+      if (!completed) throw new Error(`Trial claim lost: ${trialId}`);
       return { score: result.overallScore };
     } catch (err) {
       if (err instanceof ChaosError) {
-        emitEvent(db, trial.runId, "chaos.injected", { trialId }, trialId);
+        emitEvent(db, claimed.runId, "chaos.injected", { trialId }, trialId);
       }
-      const message = err instanceof Error ? err.message : String(err);
+      const runStatus =
+        err instanceof BudgetReservationError
+          ? err.runStatus
+          : await getRunStatus(db, claimed.runId);
+      const status =
+        runStatus === "canceled" || runStatus === "budget_exceeded"
+          ? "skipped"
+          : "failed";
+      const message = safePersistedError(err, "Trial failed");
       await db
         .update(trials)
-        .set({ status: "failed", error: message, updatedAt: new Date() })
-        .where(eq(trials.id, trialId));
+        .set({
+          status,
+          claimToken: null,
+          leaseExpiresAt: null,
+          error: message.slice(0, 1000),
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(trials.id, trialId),
+            eq(trials.claimToken, claimToken),
+            eq(trials.status, "running")
+          )
+        );
       throw err;
     }
   }

@@ -67,7 +67,7 @@ export function registerInspectRoutes(app: FastifyInstance) {
         questionText: cfg.query,
         embeddingModel: cfg.embeddingModel,
         persist: false,
-        onCost: (usd) => {
+        onCost: async (usd) => {
           totalCost += usd;
         },
       });
@@ -111,13 +111,12 @@ export function registerInspectRoutes(app: FastifyInstance) {
           chunkContents: docs,
           finalK: cfg.finalK,
           relevanceThreshold: cfg.relevanceThreshold,
-          onCost: (usd) => {
+          onCost: async (usd) => {
             totalCost += usd;
           },
         });
         keptIds = keptChunkIds;
         totalLatency += stage.latencyMs;
-        totalCost += stage.costUsd;
         send("stage", { stage: "rerank", data: stage, receipt: stage });
       } else {
         send("stage", { stage: "rerank", data: { skipped: true }, receipt: { latencyMs: 0, costUsd: 0 } });
@@ -130,12 +129,11 @@ export function registerInspectRoutes(app: FastifyInstance) {
         question: cfg.query,
         keptChunkIds: keptIds,
         chunkMap,
-        onCost: (usd) => {
+        onCost: async (usd) => {
           totalCost += usd;
         },
       });
       totalLatency += gen.stage.latencyMs;
-      totalCost += gen.stage.costUsd;
       send("stage", { stage: "generate", data: { answer: gen.answer, ...gen.stage }, receipt: gen.stage });
 
       const judgeModel = cfg.judgeModel ?? process.env.JUDGE_MODEL;
@@ -149,12 +147,11 @@ export function registerInspectRoutes(app: FastifyInstance) {
           question: cfg.query,
           referenceAnswer: "",
           candidate: gen.answer,
-          onCost: (usd) => {
+          onCost: async (usd) => {
             totalCost += usd;
           },
         });
         totalLatency += judge.latencyMs;
-        totalCost += judge.costUsd;
         send("stage", { stage: "judge", data: judge, receipt: judge });
       } else {
         send("stage", {

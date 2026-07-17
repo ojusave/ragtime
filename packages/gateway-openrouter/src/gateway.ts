@@ -1,6 +1,68 @@
 import type { ModelGateway, ModelInfo } from "@ragtime/core";
 
 const BASE_URL = "https://openrouter.ai/api/v1";
+const DEFAULT_MAX_COMPLETION_TOKENS = 1024;
+const REQUEST_TIMEOUT_MS = 30_000;
+const MAX_GET_ATTEMPTS = 4;
+const MAX_RETRY_DELAY_MS = 5_000;
+const ROUTING_TOKEN_OVERHEAD = 4_096;
+
+function requireMaxCost(value: number): number {
+  if (!Number.isFinite(value) || value <= 0) {
+    throw new Error("maxCostUsd must be a positive finite number");
+  }
+  return value;
+}
+
+function serializedTokenUpperBound(value: unknown): number {
+  return Math.max(
+    1,
+    Buffer.byteLength(JSON.stringify(value), "utf8") + ROUTING_TOKEN_OVERHEAD
+  );
+}
+
+function knownCost(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0
+    ? value
+    : undefined;
+}
+
+function retryAfterMs(value: string | null): number | undefined {
+  if (!value) return undefined;
+  const seconds = Number(value);
+  const rawMs = Number.isFinite(seconds)
+    ? seconds * 1_000
+    : Date.parse(value) - Date.now();
+  if (!Number.isFinite(rawMs) || rawMs <= 0) return undefined;
+  return Math.min(rawMs, MAX_RETRY_DELAY_MS);
+}
+
+function boundedProviderPricing(args: {
+  maxCostUsd: number;
+  promptTokenUpperBound: number;
+  completionTokenUpperBound?: number;
+}) {
+  const maxCostUsd = requireMaxCost(args.maxCostUsd);
+  const hasCompletion = (args.completionTokenUpperBound ?? 0) > 0;
+  const buckets = hasCompletion ? 3 : 2;
+  const maxPrice: Record<string, number> = {
+    request: maxCostUsd / buckets,
+    prompt:
+      ((maxCostUsd / buckets) * 1_000_000) /
+      Math.max(1, args.promptTokenUpperBound),
+  };
+  if (hasCompletion) {
+    maxPrice.completion =
+      ((maxCostUsd / buckets) * 1_000_000) /
+      Math.max(1, args.completionTokenUpperBound!);
+  }
+  return {
+    sort: "price",
+    max_price: maxPrice,
+    allow_fallbacks: false,
+    require_parameters: true,
+  };
+}
 
 export function createOpenRouterGateway(options?: {
   apiKey?: string;
@@ -21,20 +83,26 @@ export function createOpenRouterGateway(options?: {
 
   async function withRetry<T>(fn: () => Promise<T>): Promise<T> {
     let lastError: unknown;
-    for (let attempt = 0; attempt < 5; attempt++) {
+    for (let attempt = 0; attempt < MAX_GET_ATTEMPTS; attempt++) {
       try {
         return await fn();
       } catch (err) {
         lastError = err;
         const status = (err as { status?: number }).status;
         const retryable =
-          status === 429 || (status !== undefined && status >= 500) || status === undefined;
-        if (!retryable || attempt === 4) break;
-        const retryAfter = Number((err as { retryAfter?: number }).retryAfter) || 0;
+          status === 429 ||
+          (status !== undefined && status >= 500) ||
+          err instanceof TypeError ||
+          (err instanceof Error &&
+            (err.name === "AbortError" || err.name === "TimeoutError"));
+        if (!retryable || attempt === MAX_GET_ATTEMPTS - 1) break;
+        const requestedDelay = (err as { retryAfterMs?: number }).retryAfterMs;
         const delay =
-          retryAfter > 0
-            ? retryAfter * 1000
-            : Math.min(1000 * 2 ** attempt + Math.random() * 500, 30_000);
+          requestedDelay ??
+          Math.min(
+            500 * 2 ** attempt + Math.random() * 250,
+            MAX_RETRY_DELAY_MS
+          );
         await new Promise((r) => setTimeout(r, delay));
       }
     }
@@ -42,25 +110,53 @@ export function createOpenRouterGateway(options?: {
   }
 
   async function request<T>(path: string, body?: unknown): Promise<T> {
-    return withRetry(async () => {
+    const execute = async () => {
       const res = await fetch(`${BASE_URL}${path}`, {
         method: body ? "POST" : "GET",
         headers: headers(),
         body: body ? JSON.stringify(body) : undefined,
+        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
       });
       if (!res.ok) {
-        const text = await res.text();
-        const err = new Error(`OpenRouter ${path}: ${res.status} ${text}`) as Error & {
+        await res.body?.cancel();
+        const err = new Error(
+          `OpenRouter ${path} failed with HTTP ${res.status}`
+        ) as Error & {
           status?: number;
-          retryAfter?: number;
+          retryAfterMs?: number;
         };
         err.status = res.status;
-        const ra = res.headers.get("retry-after");
-        if (ra) err.retryAfter = Number(ra);
+        err.retryAfterMs = retryAfterMs(res.headers.get("retry-after"));
         throw err;
       }
       return res.json() as Promise<T>;
-    });
+    };
+
+    // A lost response to a paid POST is billing-ambiguous. Retrying it inside the
+    // same durable reservation could spend the reservation more than once.
+    return body === undefined ? withRetry(execute) : execute();
+  }
+
+  async function generationCost(generationId: string): Promise<{
+    costUsd: number | undefined;
+    provider?: string;
+    inputTokens?: number;
+    outputTokens?: number;
+  }> {
+    const gen = await request<{
+      data?: {
+        total_cost?: number;
+        native_tokens_prompt?: number;
+        native_tokens_completion?: number;
+        provider_name?: string;
+      };
+    }>(`/generation?id=${encodeURIComponent(generationId)}`);
+    return {
+      costUsd: knownCost(gen.data?.total_cost),
+      provider: gen.data?.provider_name,
+      inputTokens: gen.data?.native_tokens_prompt,
+      outputTokens: gen.data?.native_tokens_completion,
+    };
   }
 
   return {
@@ -71,6 +167,17 @@ export function createOpenRouterGateway(options?: {
         messages: req.messages,
         usage: { include: true },
       };
+      if (req.maxCostUsd != null) {
+        const maxTokens = req.maxTokens ?? DEFAULT_MAX_COMPLETION_TOKENS;
+        body.max_tokens = maxTokens;
+        body.provider = boundedProviderPricing({
+          maxCostUsd: req.maxCostUsd,
+          promptTokenUpperBound: serializedTokenUpperBound(req.messages),
+          completionTokenUpperBound: maxTokens,
+        });
+      } else if (req.maxTokens != null) {
+        body.max_tokens = req.maxTokens;
+      }
       if (req.jsonSchema) {
         body.response_format = {
           type: "json_schema",
@@ -83,7 +190,7 @@ export function createOpenRouterGateway(options?: {
         usage?: { cost?: number; prompt_tokens?: number; completion_tokens?: number };
       }>("/chat/completions", body);
 
-      let costUsd = completion.usage?.cost ?? 0;
+      let costUsd = knownCost(completion.usage?.cost);
       let provider: string | undefined;
       const generationId = completion.id;
       let tokens = {
@@ -91,18 +198,13 @@ export function createOpenRouterGateway(options?: {
         output: completion.usage?.completion_tokens,
       };
 
-      if (!costUsd && generationId) {
-        const gen = await request<{ data?: {
-          total_cost?: number;
-          native_tokens_prompt?: number;
-          native_tokens_completion?: number;
-          provider_name?: string;
-        } }>(`/generation?id=${encodeURIComponent(generationId)}`);
-        costUsd = gen.data?.total_cost ?? 0;
-        provider = gen.data?.provider_name;
+      if (costUsd === undefined && generationId) {
+        const gen = await generationCost(generationId);
+        costUsd = gen.costUsd;
+        provider = gen.provider;
         tokens = {
-          input: gen.data?.native_tokens_prompt,
-          output: gen.data?.native_tokens_completion,
+          input: gen.inputTokens,
+          output: gen.outputTokens,
         };
       }
 
@@ -110,8 +212,8 @@ export function createOpenRouterGateway(options?: {
         text: completion.choices?.[0]?.message?.content ?? "",
         receipt: {
           latencyMs: Date.now() - start,
-          costUsd,
-          costUnknown: costUsd === 0,
+          costUsd: costUsd ?? 0,
+          costUnknown: costUsd === undefined,
           tokens,
           provider,
           generationId,
@@ -121,20 +223,32 @@ export function createOpenRouterGateway(options?: {
 
     async embed(req) {
       const start = Date.now();
+      const body: Record<string, unknown> = { model: req.model, input: req.input };
+      if (req.maxCostUsd != null) {
+        body.provider = boundedProviderPricing({
+          maxCostUsd: req.maxCostUsd,
+          promptTokenUpperBound: serializedTokenUpperBound(req.input),
+        });
+      }
       const response = await request<{
+        id?: string;
         data?: { embedding: number[] }[];
         usage?: { cost?: number; total_tokens?: number };
-      }>("/embeddings", { model: req.model, input: req.input });
+      }>("/embeddings", body);
 
       const vectors = (response.data ?? []).map((d) => d.embedding);
       const dims = vectors[0]?.length ?? 0;
+      let costUsd = knownCost(response.usage?.cost);
+      if (costUsd === undefined && response.id) {
+        costUsd = (await generationCost(response.id)).costUsd;
+      }
       return {
         vectors,
         dims,
         receipt: {
           latencyMs: Date.now() - start,
-          costUsd: response.usage?.cost ?? 0,
-          costUnknown: !response.usage?.cost,
+          costUsd: costUsd ?? 0,
+          costUnknown: costUsd === undefined,
           tokens: { input: response.usage?.total_tokens },
         },
       };
@@ -142,15 +256,30 @@ export function createOpenRouterGateway(options?: {
 
     async rerank(req) {
       const start = Date.now();
-      const data = await request<{
-        results?: { index: number; relevance_score: number }[];
-        usage?: { cost?: number };
-      }>("/rerank", {
+      const body: Record<string, unknown> = {
         model: req.model,
         query: req.query,
         documents: req.documents,
         top_n: req.topN,
-      });
+      };
+      if (req.maxCostUsd != null) {
+        body.provider = boundedProviderPricing({
+          maxCostUsd: req.maxCostUsd,
+          promptTokenUpperBound: serializedTokenUpperBound({
+            query: req.query,
+            documents: req.documents,
+          }),
+        });
+      }
+      const data = await request<{
+        id?: string;
+        results?: { index: number; relevance_score: number }[];
+        usage?: { cost?: number };
+      }>("/rerank", body);
+      let costUsd = knownCost(data.usage?.cost);
+      if (costUsd === undefined && data.id) {
+        costUsd = (await generationCost(data.id)).costUsd;
+      }
 
       return {
         results: (data.results ?? []).map((r) => ({
@@ -159,8 +288,8 @@ export function createOpenRouterGateway(options?: {
         })),
         receipt: {
           latencyMs: Date.now() - start,
-          costUsd: data.usage?.cost ?? 0,
-          costUnknown: !data.usage?.cost,
+          costUsd: costUsd ?? 0,
+          costUnknown: costUsd === undefined,
         },
       };
     },

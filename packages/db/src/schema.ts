@@ -148,6 +148,9 @@ export const runs = pgTable(
     totalCostUsd: numeric("total_cost_usd", { precision: 12, scale: 6 })
       .notNull()
       .default("0"),
+    reservedCostUsd: numeric("reserved_cost_usd", { precision: 12, scale: 6 })
+      .notNull()
+      .default("0"),
     startedAt: timestamp("started_at", { withTimezone: true }),
     finishedAt: timestamp("finished_at", { withTimezone: true }),
     error: text("error"),
@@ -193,6 +196,8 @@ export const trials = pgTable(
     answer: text("answer"),
     overallScore: numeric("overall_score", { precision: 6, scale: 3 }),
     attempts: integer("attempts").notNull().default(0),
+    claimToken: uuid("claim_token"),
+    leaseExpiresAt: timestamp("lease_expires_at", { withTimezone: true }),
     error: text("error"),
     updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   },
@@ -201,6 +206,36 @@ export const trials = pgTable(
     check(
       "trials_status_check",
       sql`${t.status} IN ('pending', 'running', 'complete', 'failed', 'skipped')`
+    ),
+  ]
+);
+
+export const runCostEntries = pgTable(
+  "run_cost_entries",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    runId: uuid("run_id")
+      .notNull()
+      .references(() => runs.id, { onDelete: "cascade" }),
+    operationKey: text("operation_key").notNull(),
+    kind: text("kind").notNull(),
+    reservedUsd: numeric("reserved_usd", { precision: 12, scale: 6 }).notNull(),
+    actualUsd: numeric("actual_usd", { precision: 12, scale: 6 }),
+    status: text("status").notNull().default("reserved"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex("run_cost_entries_run_operation").on(t.runId, t.operationKey),
+    index("run_cost_entries_run_status_idx").on(t.runId, t.status),
+    check(
+      "run_cost_entries_status_check",
+      sql`${t.status} IN ('reserved', 'settled', 'released')`
+    ),
+    check("run_cost_entries_reserved_nonnegative", sql`${t.reservedUsd} >= 0`),
+    check(
+      "run_cost_entries_actual_nonnegative",
+      sql`${t.actualUsd} IS NULL OR ${t.actualUsd} >= 0`
     ),
   ]
 );
@@ -227,3 +262,4 @@ export type Question = typeof questions.$inferSelect;
 export type Run = typeof runs.$inferSelect;
 export type Combo = typeof combos.$inferSelect;
 export type Trial = typeof trials.$inferSelect;
+export type RunCostEntry = typeof runCostEntries.$inferSelect;
