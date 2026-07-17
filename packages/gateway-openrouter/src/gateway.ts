@@ -1,4 +1,8 @@
-import type { ModelGateway, ModelInfo } from "@ragtime/core";
+import {
+  ProviderCallError,
+  type ModelGateway,
+  type ModelInfo,
+} from "@ragtime/core";
 
 const BASE_URL = "https://openrouter.ai/api/v1";
 const DEFAULT_MAX_COMPLETION_TOKENS = 1024;
@@ -6,6 +10,8 @@ const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_GET_ATTEMPTS = 4;
 const MAX_RETRY_DELAY_MS = 5_000;
 const ROUTING_TOKEN_OVERHEAD = 4_096;
+const GENERATION_LOOKUP_ATTEMPTS = 4;
+const GENERATION_LOOKUP_DELAY_MS = 50;
 
 function requireMaxCost(value: number): number {
   if (!Number.isFinite(value) || value <= 0) {
@@ -92,6 +98,9 @@ export function createOpenRouterGateway(options?: {
         const retryable =
           status === 429 ||
           (status !== undefined && status >= 500) ||
+          (err instanceof ProviderCallError &&
+            !err.billingAmbiguous &&
+            status === undefined) ||
           err instanceof TypeError ||
           (err instanceof Error &&
             (err.name === "AbortError" || err.name === "TimeoutError"));
@@ -111,25 +120,37 @@ export function createOpenRouterGateway(options?: {
 
   async function request<T>(path: string, body?: unknown): Promise<T> {
     const execute = async () => {
-      const res = await fetch(`${BASE_URL}${path}`, {
-        method: body ? "POST" : "GET",
-        headers: headers(),
-        body: body ? JSON.stringify(body) : undefined,
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
-      });
+      let res: Response;
+      try {
+        res = await fetch(`${BASE_URL}${path}`, {
+          method: body ? "POST" : "GET",
+          headers: headers(),
+          body: body ? JSON.stringify(body) : undefined,
+          signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        });
+      } catch (error) {
+        const message =
+          error instanceof Error ? error.message : "OpenRouter request failed";
+        throw new ProviderCallError(message, body !== undefined);
+      }
       if (!res.ok) {
         await res.body?.cancel();
-        const err = new Error(
-          `OpenRouter ${path} failed with HTTP ${res.status}`
-        ) as Error & {
-          status?: number;
-          retryAfterMs?: number;
-        };
-        err.status = res.status;
-        err.retryAfterMs = retryAfterMs(res.headers.get("retry-after"));
-        throw err;
+        throw new ProviderCallError(
+          `OpenRouter ${path} failed with HTTP ${res.status}`,
+          body !== undefined && res.status >= 500,
+          res.status,
+          retryAfterMs(res.headers.get("retry-after"))
+        );
       }
-      return res.json() as Promise<T>;
+      try {
+        return (await res.json()) as T;
+      } catch {
+        throw new ProviderCallError(
+          `OpenRouter ${path} returned an invalid JSON response`,
+          body !== undefined,
+          res.status
+        );
+      }
     };
 
     // A lost response to a paid POST is billing-ambiguous. Retrying it inside the
@@ -143,20 +164,41 @@ export function createOpenRouterGateway(options?: {
     inputTokens?: number;
     outputTokens?: number;
   }> {
-    const gen = await request<{
-      data?: {
-        total_cost?: number;
-        native_tokens_prompt?: number;
-        native_tokens_completion?: number;
-        provider_name?: string;
-      };
-    }>(`/generation?id=${encodeURIComponent(generationId)}`);
-    return {
-      costUsd: knownCost(gen.data?.total_cost),
-      provider: gen.data?.provider_name,
-      inputTokens: gen.data?.native_tokens_prompt,
-      outputTokens: gen.data?.native_tokens_completion,
-    };
+    for (let attempt = 0; attempt < GENERATION_LOOKUP_ATTEMPTS; attempt++) {
+      try {
+        const gen = await request<{
+          data?: {
+            total_cost?: number;
+            native_tokens_prompt?: number;
+            native_tokens_completion?: number;
+            provider_name?: string;
+          };
+        }>(`/generation?id=${encodeURIComponent(generationId)}`);
+        return {
+          costUsd: knownCost(gen.data?.total_cost),
+          provider: gen.data?.provider_name,
+          inputTokens: gen.data?.native_tokens_prompt,
+          outputTokens: gen.data?.native_tokens_completion,
+        };
+      } catch (error) {
+        const status =
+          error instanceof ProviderCallError ? error.status : undefined;
+        if (
+          status === 404 &&
+          attempt < GENERATION_LOOKUP_ATTEMPTS - 1
+        ) {
+          await new Promise((resolve) =>
+            setTimeout(
+              resolve,
+              GENERATION_LOOKUP_DELAY_MS * 2 ** attempt
+            )
+          );
+          continue;
+        }
+        return { costUsd: undefined };
+      }
+    }
+    return { costUsd: undefined };
   }
 
   return {

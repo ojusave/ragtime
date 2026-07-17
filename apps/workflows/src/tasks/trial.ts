@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { task } from "@renderinc/sdk/workflows";
 import { and, eq, inArray } from "drizzle-orm";
 import {
+  CostOperationError,
   getAppConfig,
   runTrialPipeline,
   runConfigSchema,
@@ -201,11 +202,17 @@ export const runTrial = task(
         runStatus === "canceled" || runStatus === "budget_exceeded"
           ? "skipped"
           : "failed";
+      const nonRetryableCostFailure =
+        err instanceof CostOperationError ||
+        (err instanceof BudgetReservationError && !err.retryable);
       const message = safePersistedError(err, "Trial failed");
       await db
         .update(trials)
         .set({
           status,
+          attempts: nonRetryableCostFailure
+            ? MAX_TRIAL_ATTEMPTS
+            : undefined,
           claimToken: null,
           leaseExpiresAt: null,
           error: message.slice(0, 1000),
