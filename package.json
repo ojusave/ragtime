@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "build": "pnpm -r build",
-    "test": "pnpm --filter @ragtime/core --filter @ragtime/db --filter @ragtime/gateway-openrouter build && node --test packages/core/test/*.test.mjs packages/db/test/*.test.mjs packages/gateway-openrouter/test/*.test.mjs && pnpm --filter @ragtime/web exec tsx --test test/run-plan.test.ts",
+    "test": "pnpm --filter @ragtime/core --filter @ragtime/db --filter @ragtime/gateway-openrouter build && node --test packages/core/test/*.test.mjs packages/db/test/*.test.mjs packages/gateway-openrouter/test/*.test.mjs && pnpm --filter @ragtime/web exec tsx --test test/run-plan.test.ts test/score-display.test.ts",
     "build:workflows": "pnpm --filter @ragtime/workflows... build",
     "dev": "pnpm --filter @ragtime/web dev",
     "db:migrate": "pnpm --filter @ragtime/db migrate",

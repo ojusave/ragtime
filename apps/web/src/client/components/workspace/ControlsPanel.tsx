@@ -14,6 +14,7 @@ import { useDisclosure } from "@mantine/hooks";
 import { COPY } from "../../lib/copy";
 import type { SampleQuestion } from "../../hooks/types";
 import type { useModelMatrix } from "../../hooks/useModelMatrix";
+import ProviderMark from "./ProviderMark";
 
 type Matrix = ReturnType<typeof useModelMatrix>;
 
@@ -33,7 +34,12 @@ function shortLabel(text: string, max = 72): string {
   return text.length > max ? `${text.slice(0, max)}…` : text;
 }
 
-const fieldProps = { size: "sm" as const, comboboxProps: { withinPortal: true } };
+const fieldProps = { size: "sm" as const };
+const selectFieldProps = {
+  ...fieldProps,
+  comboboxProps: { withinPortal: true },
+  classNames: { input: "rag-select-input" },
+};
 
 export default function ControlsPanel({
   samples,
@@ -76,7 +82,7 @@ export default function ControlsPanel({
   return (
     <Stack gap="sm" className="controls-panel">
       <Select
-        {...fieldProps}
+        {...selectFieldProps}
         label={COPY.app.sampleQuestions}
         placeholder="Choose a sample"
         searchable
@@ -108,10 +114,16 @@ export default function ControlsPanel({
       </Group>
 
       <MultiSelect
-        {...fieldProps}
+        {...selectFieldProps}
         label={COPY.app.embedLabel}
         searchable
         data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
+        renderOption={({ option }) => (
+          <Group gap="xs" wrap="nowrap">
+            <ProviderMark modelId={option.value} />
+            <Text size="sm" lineClamp={1}>{option.label}</Text>
+          </Group>
+        )}
         value={embModels}
         onChange={setEmbModels}
       />
@@ -124,19 +136,31 @@ export default function ControlsPanel({
       />
 
       <MultiSelect
-        {...fieldProps}
+        {...selectFieldProps}
         label={COPY.app.rerankLabel}
         searchable
         data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
+        renderOption={({ option }) => (
+          <Group gap="xs" wrap="nowrap">
+            <ProviderMark modelId={option.value} />
+            <Text size="sm" lineClamp={1}>{option.label}</Text>
+          </Group>
+        )}
         value={rerModels}
         onChange={setRerModels}
       />
 
       <MultiSelect
-        {...fieldProps}
+        {...selectFieldProps}
         label={COPY.app.genLabel}
         searchable
         data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
+        renderOption={({ option }) => (
+          <Group gap="xs" wrap="nowrap">
+            <ProviderMark modelId={option.value} />
+            <Text size="sm" lineClamp={1}>{option.label}</Text>
+          </Group>
+        )}
         value={genModels}
         onChange={setGenModels}
       />

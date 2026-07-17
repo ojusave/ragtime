@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { COPY } from "../lib/copy";
 import { notifyError, notifySuccess } from "../lib/notify";
+import { prioritizeSampleQuestions } from "../lib/sample-display";
 import type { DemoInfo, SampleQuestion } from "./types";
 
 export function useDemoBootstrap() {
@@ -16,6 +17,7 @@ export function useDemoBootstrap() {
   const samples = useQuery({
     queryKey: ["samples"],
     queryFn: () => api<SampleQuestion[]>("/api/samples"),
+    select: prioritizeSampleQuestions,
     enabled: Boolean(demo.data?.ready),
   });
 

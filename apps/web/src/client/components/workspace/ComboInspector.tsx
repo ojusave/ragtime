@@ -1,7 +1,8 @@
-import { Loader, Stack, Text } from "@mantine/core";
+import { Badge, Group, Loader, Stack, Text } from "@mantine/core";
 import { useMemo } from "react";
 import TrialStagesPanel from "../TrialStagesPanel";
-import { COPY } from "../../lib/copy";
+import { COPY, TEST_STATUS_LABEL } from "../../lib/copy";
+import { scorePercent, scoreTone } from "../../lib/score-display";
 import { comboLabel } from "@ragtime/core";
 import type { TrialDetail } from "../../hooks/types";
 
@@ -43,16 +44,34 @@ export default function ComboInspector({
     trial.combo.rerankModel,
     trial.combo.genModel
   );
+  const score = scorePercent(trial.trial.overallScore);
+  const tone = scoreTone(score);
+  const statusLabel = TEST_STATUS_LABEL[trial.trial.status] ?? trial.trial.status;
 
   return (
     <Stack gap="md" className="combo-inspector">
+      <section className={`inspector-score-card score-tone--${tone}`} aria-label="Selected trial score">
+        <Group justify="space-between" align="flex-start" wrap="nowrap">
+          <Stack gap={3}>
+            <Text className="inspector-score-label">Eval score</Text>
+            <Group gap={4} align="baseline">
+              <Text component="span" className="inspector-score-value">
+                {score ?? "—"}
+              </Text>
+              <Text component="span" className="inspector-score-scale">
+                /100
+              </Text>
+            </Group>
+          </Stack>
+          <Badge color={trial.trial.status === "complete" ? "green" : "gray"} variant="light">
+            {statusLabel}
+          </Badge>
+        </Group>
+      </section>
+
       <Stack gap={4}>
-        <Text fw={600} size="sm">
-          {label}
-        </Text>
-        <Text size="xs" c="dimmed" lineClamp={4}>
-          {trial.question.text}
-        </Text>
+        <Text fw={600} size="sm">{label}</Text>
+        <Text size="xs" c="dimmed" lineClamp={4}>{trial.question.text}</Text>
       </Stack>
       <TrialStagesPanel
         stages={trial.trial.stages}
