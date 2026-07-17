@@ -34,17 +34,17 @@ export async function getComboResults(db: Db, runId: string): Promise<ComboResul
     embeddingModel: r.embedding_model,
     rerankModel: r.rerank_model,
     genModel: r.gen_model,
-    avgScore: r.avg_score ? Number(r.avg_score) : null,
-    avgCostPerQuestion: r.avg_cost_per_question
+    avgScore: r.avg_score != null ? Number(r.avg_score) : null,
+    avgCostPerQuestion: r.avg_cost_per_question != null
       ? Number(r.avg_cost_per_question)
       : null,
-    p50GenerationLatencyMs: r.p50_generation_latency_ms
+    p50GenerationLatencyMs: r.p50_generation_latency_ms != null
       ? Number(r.p50_generation_latency_ms)
       : null,
-    p95GenerationLatencyMs: r.p95_generation_latency_ms
+    p95GenerationLatencyMs: r.p95_generation_latency_ms != null
       ? Number(r.p95_generation_latency_ms)
       : null,
-    totalCostUsd: r.total_cost_usd ? Number(r.total_cost_usd) : null,
+    totalCostUsd: r.total_cost_usd != null ? Number(r.total_cost_usd) : null,
     completeCount: Number(r.complete_count),
     failedCount: Number(r.failed_count),
     selfJudged: Boolean(judgeModel && r.gen_model === judgeModel),

@@ -2,6 +2,7 @@ import { Badge, Box, Stack, Text } from "@mantine/core";
 import type { TrialStages } from "@ragtime/core";
 import { COPY } from "../lib/copy";
 import { formatReceipt } from "../lib/receipt";
+import { scorePercent, scoreTone } from "../lib/score-display";
 
 type ChunkRow = { id: string; content: string; idx?: number };
 
@@ -123,15 +124,33 @@ export default function TrialStagesPanel({
       )}
 
       {judge && (
-        <section>
+        <section className="judge-section">
           <Text fw={600} size="sm">
             {COPY.stages.rateAnswer(judge.judgeModel.split("/").pop() ?? judge.judgeModel)}
           </Text>
           {receiptLine(judge)}
-          <Text size="sm">
-            {COPY.stages.scores(judge.faithfulness, judge.correctness, judge.completeness)}
-          </Text>
-          <Text size="xs" c="dimmed">
+          <div className="judge-score-grid" role="list" aria-label="Judge dimension scores">
+            {[
+              ["Faithfulness", judge.faithfulness],
+              ["Correctness", judge.correctness],
+              ["Completeness", judge.completeness],
+            ].map(([label, value]) => {
+              const score = scorePercent(value as number);
+              return (
+                <div
+                  key={label}
+                  className={`judge-score score-tone--${scoreTone(score)}`}
+                  role="listitem"
+                  aria-label={`${label}: ${score ?? 0} out of 100`}
+                >
+                  <span className="judge-score__value">{score ?? "—"}</span>
+                  <span className="judge-score__scale">/100</span>
+                  <span className="judge-score__label">{label}</span>
+                </div>
+              );
+            })}
+          </div>
+          <Text size="xs" c="dimmed" className="judge-rationale">
             {judge.rationale}
           </Text>
         </section>

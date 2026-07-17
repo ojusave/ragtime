@@ -1,10 +1,15 @@
 import type { ComboResult } from "@ragtime/core";
+import { scorePercent } from "./score-display";
+
+function csvCell(value: string): string {
+  return /[",\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+}
 
 /** Download combo leaderboard as CSV. */
 export function downloadResultsCsv(runName: string, rows: ComboResult[]) {
   const header = [
     "model_setup",
-    "quality_score",
+    "eval_score_0_100",
     "cost_per_question_usd",
     "typical_speed_ms",
     "slowest_5_percent_ms",
@@ -13,8 +18,8 @@ export function downloadResultsCsv(runName: string, rows: ComboResult[]) {
   ];
   const lines = rows.map((c) =>
     [
-      c.label ?? c.genModel,
-      c.avgScore?.toFixed(4) ?? "",
+      csvCell(c.label ?? c.genModel),
+      scorePercent(c.avgScore, 1)?.toFixed(1) ?? "",
       c.avgCostPerQuestion?.toFixed(6) ?? "",
       c.p50GenerationLatencyMs?.toFixed(0) ?? "",
       c.p95GenerationLatencyMs?.toFixed(0) ?? "",
