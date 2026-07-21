@@ -138,10 +138,8 @@ export const runTrial = task(
         relevanceThreshold: combo.relevanceThreshold
           ? Number(combo.relevanceThreshold)
           : null,
-        judgeModel:
-          config.judgeModel ??
-          process.env.JUDGE_MODEL ??
-          "openai/gpt-4o-mini",
+        // Guaranteed at run creation (createRunPlan rejects runs without one).
+        judgeModel: config.judgeModel!,
         judgeWeights: config.judgeWeights,
         existingStages: claimed.stages ?? {},
         existingAnswer: claimed.answer,

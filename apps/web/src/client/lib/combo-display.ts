@@ -6,7 +6,7 @@ export type ComboModels = {
   answer: string;
 };
 
-/** Short display name from an OpenRouter-style model id. */
+/** Short display name from a "provider/model" style id (slash is optional). */
 export function shortModelName(id: string): string {
   const slug = id.split("/").pop() ?? id;
   return slug

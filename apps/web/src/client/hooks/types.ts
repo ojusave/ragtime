@@ -15,10 +15,24 @@ export type DemoInfo = {
   name?: string;
 };
 
+export type CatalogModel = {
+  id: string;
+  name: string;
+  pricing?: { prompt?: string; completion?: string; request?: string };
+};
+
+export type GatewayIdentity = {
+  id: string;
+  label: string;
+  docsUrl?: string;
+  creditsUrl?: string;
+};
+
 export type Catalog = {
-  embedding: { id: string; name: string }[];
-  rerank: { id: string; name: string }[];
-  chat: { id: string; name: string }[];
+  embedding: CatalogModel[];
+  rerank: CatalogModel[];
+  chat: CatalogModel[];
+  gateway: GatewayIdentity;
 };
 
 export type GridCell = {

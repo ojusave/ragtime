@@ -18,12 +18,21 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    const body = err as { error?: string | object; message?: string };
+    const body = err as {
+      error?: string | object;
+      message?: string;
+      code?: string;
+      helpUrl?: string;
+    };
     const raw =
       body.message ??
       (typeof body.error === "string" ? body.error : undefined) ??
       res.statusText;
-    throw new Error(friendlyError(raw));
+    const error = new Error(
+      friendlyError(raw, { code: body.code, helpUrl: body.helpUrl })
+    );
+    Object.assign(error, { code: body.code, helpUrl: body.helpUrl });
+    throw error;
   }
   const json = await res.json();
   return json.data as T;

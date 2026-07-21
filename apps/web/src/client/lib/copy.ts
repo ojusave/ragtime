@@ -56,7 +56,32 @@ export function formatMatrixSummary(args: {
   return { line, trialCount, overLimit };
 }
 
-export function friendlyError(raw: string): string {
+export type FriendlyErrorMeta = {
+  /** Machine-readable provider error code, mapped before any string heuristics. */
+  code?: string;
+  /** Adapter-supplied link that helps the user resolve the error. */
+  helpUrl?: string;
+};
+
+/** Maps provider error codes to plain-language messages. Falls back to string heuristics. */
+export function friendlyError(raw: string, meta?: FriendlyErrorMeta): string {
+  switch (meta?.code) {
+    case "insufficient_credits":
+      return meta.helpUrl
+        ? `Credits are low. Add more credits: ${meta.helpUrl}`
+        : "Credits are low. Add more credits to your model gateway account.";
+    case "rate_limited":
+      return "The model gateway is rate limiting requests. Wait a moment and try again.";
+    case "auth":
+      return "The model gateway rejected the request. Check the API key configuration.";
+    case "invalid_model":
+      return "One of the selected models is not available on the model gateway.";
+    case "provider_unavailable":
+      return "The model gateway is temporarily unavailable. Try again shortly.";
+    default:
+      break;
+  }
+
   const msg = raw.trim();
   if (!msg || msg === "Unknown error") {
     return "Request failed. Try fewer models or check the service logs.";
@@ -68,10 +93,10 @@ export function friendlyError(raw: string): string {
     return "Run did not start. Check deployment configuration.";
   }
   if (msg.includes("402") || msg.includes("Insufficient credits")) {
-    return "OpenRouter credits are low. Add credits at openrouter.ai/settings/credits.";
+    return "Credits are low. Add more credits to your model gateway account.";
   }
   if (msg.includes("matrix would run") || msg.includes("max ")) {
-    return msg.replace(/trials/gi, "trials").replace(/model stack/gi, "model setup");
+    return msg.replace(/model stack/gi, "model setup");
   }
   if (msg.includes("Not found")) {
     return "Run not found. It may belong to another browser session.";
@@ -116,6 +141,10 @@ export const COPY = {
     bestScore: "Best score",
     trials: "Trials",
     eventLog: "Event log",
+    howItWorks: "How it works",
+    githubLink: "GitHub",
+    footerStatus: (gatewayLabel: string) => `Render Workflows + ${gatewayLabel}`,
+    gatewayDocs: (gatewayLabel: string) => `${gatewayLabel} docs`,
   },
   /** @deprecated Use COPY.app — kept for gradual migration */
   playground: {

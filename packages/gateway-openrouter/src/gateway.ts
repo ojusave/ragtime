@@ -1,10 +1,40 @@
 import {
   ProviderCallError,
+  type GatewayIdentity,
   type ModelGateway,
   type ModelInfo,
+  type ProviderErrorCode,
 } from "@ragtime/core";
 
 const BASE_URL = "https://openrouter.ai/api/v1";
+const CREDITS_URL = "https://openrouter.ai/settings/credits";
+const DOCS_URL = "https://openrouter.ai/docs";
+
+const GATEWAY_IDENTITY: GatewayIdentity = {
+  id: "openrouter",
+  label: "OpenRouter",
+  docsUrl: DOCS_URL,
+  creditsUrl: CREDITS_URL,
+};
+
+/** Maps an HTTP status (and optional body text) to a stable error code. */
+function classifyStatus(
+  status: number,
+  bodyText?: string
+): ProviderErrorCode | undefined {
+  if (status === 402) return "insufficient_credits";
+  if (status === 429) return "rate_limited";
+  if (status === 401 || status === 403) return "auth";
+  if (status === 400) {
+    return /model/i.test(bodyText ?? "") ? "invalid_model" : undefined;
+  }
+  if (status >= 500) return "provider_unavailable";
+  return undefined;
+}
+
+function helpUrlForCode(code: ProviderErrorCode | undefined): string | undefined {
+  return code === "insufficient_credits" ? CREDITS_URL : undefined;
+}
 const DEFAULT_MAX_COMPLETION_TOKENS = 1024;
 const REQUEST_TIMEOUT_MS = 30_000;
 const MAX_GET_ATTEMPTS = 4;
@@ -131,15 +161,24 @@ export function createOpenRouterGateway(options?: {
       } catch (error) {
         const message =
           error instanceof Error ? error.message : "OpenRouter request failed";
-        throw new ProviderCallError(message, body !== undefined);
+        throw new ProviderCallError(
+          message,
+          body !== undefined,
+          undefined,
+          undefined,
+          "provider_unavailable"
+        );
       }
       if (!res.ok) {
-        await res.body?.cancel();
+        const bodyText = await res.text().catch(() => "");
+        const code = classifyStatus(res.status, bodyText);
         throw new ProviderCallError(
           `OpenRouter ${path} failed with HTTP ${res.status}`,
           body !== undefined && res.status >= 500,
           res.status,
-          retryAfterMs(res.headers.get("retry-after"))
+          retryAfterMs(res.headers.get("retry-after")),
+          code,
+          helpUrlForCode(code)
         );
       }
       try {
@@ -381,7 +420,7 @@ export function createOpenRouterGateway(options?: {
       rerank.sort((a, b) => a.name.localeCompare(b.name));
       chat.sort((a, b) => a.name.localeCompare(b.name));
 
-      return { embedding, rerank, chat };
+      return { embedding, rerank, chat, gateway: GATEWAY_IDENTITY };
     },
   };
 }

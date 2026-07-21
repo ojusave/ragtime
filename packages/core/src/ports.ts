@@ -23,6 +23,21 @@ export type ModelInfo = {
   pricing?: { prompt?: string; completion?: string; request?: string };
 };
 
+/** Adapter-supplied identity for the provider behind a gateway, shown in the UI. */
+export type GatewayIdentity = {
+  id: string;
+  label: string;
+  docsUrl?: string;
+  creditsUrl?: string;
+};
+
+export type ModelCatalog = {
+  embedding: ModelInfo[];
+  rerank: ModelInfo[];
+  chat: ModelInfo[];
+  gateway: GatewayIdentity;
+};
+
 export interface ModelGateway {
   chat(req: {
     model: string;
@@ -49,11 +64,7 @@ export interface ModelGateway {
     maxCostUsd?: number;
   }): Promise<WithReceipt<{ results: { index: number; relevance: number }[] }>>;
 
-  catalog(): Promise<{
-    embedding: ModelInfo[];
-    rerank: ModelInfo[];
-    chat: ModelInfo[];
-  }>;
+  catalog(): Promise<ModelCatalog>;
 }
 
 export type CostOperationKind =

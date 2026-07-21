@@ -16,13 +16,28 @@ export type RunPlanRejection = {
   error: string;
 };
 
+export type RunPlanOptions = {
+  /** Env-supplied judge model used when the request omits one. */
+  judgeModelFallback?: string;
+};
+
+function resolveJudgeModel(
+  config: RunConfig,
+  options?: RunPlanOptions
+): string | undefined {
+  const candidate = config.judgeModel ?? options?.judgeModelFallback;
+  const trimmed = candidate?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 /**
  * Converts a parsed request into the immutable question snapshot persisted with a run.
  * `authorizedQuestionIds` must already be restricted to the requested corpus and caller.
  */
 export function createRunPlan(
   config: RunConfig,
-  authorizedQuestionIds: readonly string[]
+  authorizedQuestionIds: readonly string[],
+  options?: RunPlanOptions
 ): RunPlan {
   const authorized = [...new Set(authorizedQuestionIds)];
   const authorizedSet = new Set(authorized);
@@ -40,8 +55,10 @@ export function createRunPlan(
     config.rerankModels.length *
     config.genModels.length;
 
+  const judgeModel = resolveJudgeModel(config, options);
+
   return {
-    config: { ...config, questionIds: [...questionIds] },
+    config: { ...config, judgeModel, questionIds: [...questionIds] },
     comboCount,
     trialCount: comboCount * questionIds.length,
     unavailableQuestionIds,
@@ -52,6 +69,13 @@ export function getRunPlanRejection(
   plan: RunPlan,
   maxTrials: number
 ): RunPlanRejection | null {
+  if (!plan.config.judgeModel) {
+    return {
+      statusCode: 400,
+      error:
+        "No judge model configured. Set JUDGE_MODEL or include judgeModel in the run request.",
+    };
+  }
   if (plan.unavailableQuestionIds.length > 0) {
     return {
       statusCode: 403,

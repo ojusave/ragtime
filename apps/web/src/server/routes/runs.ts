@@ -65,7 +65,8 @@ export function registerRunRoutes(app: FastifyInstance): void {
     const maxTrials = envNumber("MAX_TRIALS_PER_RUN", 324);
     const plan = createRunPlan(
       body,
-      authorizedQuestions.map((question) => question.id)
+      authorizedQuestions.map((question) => question.id),
+      { judgeModelFallback: config.judgeModel }
     );
 
     const rejection = getRunPlanRejection(plan, maxTrials);

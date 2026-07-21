@@ -2,10 +2,8 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { formatMatrixSummary } from "../lib/copy";
+import { deriveStarterPreset } from "../lib/model-preset";
 import type { Catalog } from "./types";
-
-const SUGGESTED_EMB = ["baai/bge-large-en-v1.5", "google/gemini-embedding-001"];
-const SUGGESTED_GEN = ["mistralai/mistral-small-24b-instruct-2501", "qwen/qwen3.5-9b"];
 
 export function useModelMatrix(questionCount: number) {
   const [embModels, setEmbModels] = useState<string[]>([]);
@@ -43,10 +41,11 @@ export function useModelMatrix(questionCount: number) {
   }, [embModels, rerModels, genModels, noRerank, questionCount, budget, appConfig]);
 
   function applyStarterPreset() {
-    const emb = catalog?.embedding.map((m) => m.id) ?? [];
-    const gen = catalog?.chat.map((m) => m.id) ?? [];
-    setEmbModels(SUGGESTED_EMB.filter((mid) => emb.includes(mid)));
-    setGenModels(SUGGESTED_GEN.filter((mid) => gen.includes(mid)));
+    const preset = deriveStarterPreset(catalog);
+    if (!preset) return;
+    const genModelIds = [...new Set([preset.budgetGenModel, preset.midGenModel])];
+    setEmbModels([preset.embeddingModel]);
+    setGenModels(genModelIds);
     setRerModels([]);
     setNoRerank(true);
     setPresetApplied(true);

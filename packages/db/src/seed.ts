@@ -76,7 +76,7 @@ export async function seed(): Promise<void> {
   console.log("Seed complete.");
   console.log("Default bake-off corpus (SciFact):", ids[0]);
   console.log(
-    "Run `pnpm suggest-matrix` with OPENROUTER_API_KEY set to print a starter model matrix."
+    "Configure your model gateway credentials, then run `pnpm suggest-matrix` to print a starter model matrix."
   );
 
   await closeDb();
