@@ -102,7 +102,7 @@ Open the web URL, open the **SciFact (BEIR)** corpus, configure a small matrix, 
 
 ```bash
 cp .env.example .env
-# OPENROUTER_API_KEY for real models, or MODEL_GATEWAY=fake for offline
+# Set OPENROUTER_API_KEY (the app talks to models through OpenRouter)
 
 docker compose up -d
 pnpm install
@@ -115,17 +115,22 @@ pnpm dev
 - API: http://localhost:3000
 - Workflow dev server: `render workflows dev -- pnpm --filter @ragtime/workflows dev`
 
-For local task triggers from the web service:
+For the web service to trigger tasks against the local workflow dev server
+(`render workflows dev` listens on port 8120), set the SDK's local-dev switch
+so it routes to `localhost:8120` instead of `api.render.com`:
 
 ```bash
-export RENDER_API_URL=http://localhost:8090
+export RENDER_USE_LOCAL_DEV=true
+export RENDER_LOCAL_DEV_URL=http://localhost:8120   # optional, this is the default
+export RENDER_API_KEY=local-dev                     # any non-empty value locally
 ```
+
+In production leave `RENDER_USE_LOCAL_DEV` unset so the SDK uses the Render API.
 
 ### Smoke tests
 
 ```bash
-pnpm smoke:fake          # always works, zero spend
-pnpm smoke               # OpenRouter when OPENROUTER_API_KEY is set, then fake
+pnpm smoke               # runs the OpenRouter gateway smoke when OPENROUTER_API_KEY is set
 ```
 
 Prints embed, rerank (if `SMOKE_RERANK_MODEL` set), and chat receipts.
