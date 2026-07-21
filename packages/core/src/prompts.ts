@@ -34,13 +34,36 @@ Score three dimensions as integers from 0 to 10:
 Respond with ONLY this JSON, no markdown, no commentary:
 {"faithfulness": 0, "correctness": 0, "completeness": 0, "rationale": "<max 40 words>"}`;
 
+export const JUDGE_PROMPT_NO_REFERENCE = `You are grading one answer from a retrieval-augmented QA system.
+
+You will receive:
+- CONTEXT: the retrieved passages the system was given
+- QUESTION: the user question
+- CANDIDATE: the answer to grade
+
+No reference answer exists for this question, so do NOT score correctness.
+Score two dimensions as integers from 0 to 10:
+
+- faithfulness: Is every claim in CANDIDATE supported by CONTEXT?
+  Penalize any claim not present in CONTEXT, even if it happens to be true.
+  A candidate that says the context is insufficient, when it truly is, scores high.
+- completeness: Does CANDIDATE address the essential parts of QUESTION using CONTEXT?
+  Penalize missing key facts available in CONTEXT. Do not reward padding.
+
+Respond with ONLY this JSON, no markdown, no commentary:
+{"faithfulness": 0, "completeness": 0, "rationale": "<max 40 words>"}`;
+
 export function buildJudgeUserPrompt(
   context: string,
   question: string,
-  reference: string,
+  reference: string | null,
   candidate: string
 ): string {
-  return `CONTEXT:\n${context}\n\nQUESTION:\n${question}\n\nREFERENCE:\n${reference}\n\nCANDIDATE:\n${candidate}`;
+  const referenceBlock =
+    reference != null && reference.trim() !== ""
+      ? `\n\nREFERENCE:\n${reference}`
+      : "";
+  return `CONTEXT:\n${context}\n\nQUESTION:\n${question}${referenceBlock}\n\nCANDIDATE:\n${candidate}`;
 }
 
 export const QUESTION_GEN_SYSTEM = `You generate evaluation questions for a RAG system.

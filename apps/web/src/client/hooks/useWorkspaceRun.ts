@@ -15,12 +15,15 @@ type SetupInput = {
 
 type StartArgs = {
   corpusId: string;
-  questionId: string;
   name: string;
   setups: SetupInput[];
   retrieveK: number;
   finalK: number;
   budgetUsd: number;
+  /** Single-question run: the question to answer. */
+  questionId?: string;
+  /** Escalation: run every setup against all corpus questions. */
+  allQuestions?: boolean;
 };
 
 export function useWorkspaceRun() {
@@ -51,6 +54,11 @@ export function useWorkspaceRun() {
       ];
       const rerankModels = [...new Set(args.setups.map((s) => s.rerankModel))];
       const genModels = [...new Set(args.setups.map((s) => s.genModel))];
+      const questionIds = args.allQuestions
+        ? "all"
+        : args.questionId
+          ? [args.questionId]
+          : [];
       return api<{ runId: string }>("/api/runs", {
         method: "POST",
         body: JSON.stringify({
@@ -60,7 +68,7 @@ export function useWorkspaceRun() {
           rerankModels,
           genModels,
           setups: args.setups,
-          questionIds: [args.questionId],
+          questionIds,
           retrieveK: args.retrieveK,
           finalK: args.finalK,
           budgetUsd: args.budgetUsd,

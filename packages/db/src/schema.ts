@@ -123,7 +123,7 @@ export const questions = pgTable(
       .references(() => corpora.id, { onDelete: "cascade" }),
     sessionId: text("session_id"),
     text: text("text").notNull(),
-    referenceAnswer: text("reference_answer").notNull(),
+    referenceAnswer: text("reference_answer"),
     origin: text("origin").notNull().default("manual"),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },

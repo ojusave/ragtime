@@ -180,10 +180,19 @@ export function registerRunRoutes(app: FastifyInstance): void {
     const questionRows =
       questionIds.length > 0
         ? await db
-            .select({ id: questions.id, text: questions.text })
+            .select({
+              id: questions.id,
+              text: questions.text,
+              referenceAnswer: questions.referenceAnswer,
+            })
             .from(questions)
             .where(inArray(questions.id, questionIds))
         : [];
+
+    // A question with no reference answer is scored "judge-only": no correctness.
+    const judgeOnlyQuestionIds = new Set(
+      questionRows.filter((q) => q.referenceAnswer == null).map((q) => q.id)
+    );
 
     const phases = await getPhaseCounters(db, req.params.id, run.corpusId);
 
@@ -195,8 +204,11 @@ export function registerRunRoutes(app: FastifyInstance): void {
           ...c,
           label: comboLabel(c.embeddingModel, c.rerankModel, c.genModel),
         })),
-        grid,
-        questions: questionRows,
+        grid: grid.map((cell) => ({
+          ...cell,
+          judgeOnly: judgeOnlyQuestionIds.has(cell.questionId),
+        })),
+        questions: questionRows.map((q) => ({ id: q.id, text: q.text })),
       },
     };
   });

@@ -172,6 +172,15 @@ export const COPY = {
     resizeAria: "Resize run and detail panes",
     runAgain: "New run",
     cancel: "Cancel run",
+    escalateButton: (n: number) => `Run these setups across all ${n} questions`,
+    escalateConfirmTitle: "Run the full comparison?",
+    escalateConfirmBody: (trials: number, budget: string) =>
+      `This runs every setup against all questions: ${trials} answers total, up to $${budget} in spend.`,
+    escalateConfirm: "Run all questions",
+    escalateCancel: "Not now",
+    progressTitle: "Setups",
+    progressHint: "Progress across every question. Select a setup to inspect one answer.",
+    progressComplete: (done: number, total: number) => `${done}/${total} answered`,
     progress: (done: number, total: number) => `${done} of ${total} complete`,
     spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
     elapsed: (sec: number) => `${sec.toFixed(1)}s`,
@@ -192,6 +201,12 @@ export const COPY = {
     judgeScoreTooltip:
       "A judge model rates faithfulness, correctness, and completeness from the retrieved passages.",
     judgeScoreAxis: "Judge score (0-100)",
+    judgeOnlyBadge: "Judge-only",
+    judgeOnlyTooltip:
+      "No reference answer exists for this question, so correctness is not scored.",
+    correctnessDimension: "Correctness",
+    faithfulnessDimension: "Faithfulness",
+    completenessDimension: "Completeness",
     eventLog: "Event log",
     howItWorks: "How it works",
     githubLink: "GitHub",

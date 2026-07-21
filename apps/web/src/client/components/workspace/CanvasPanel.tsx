@@ -1,7 +1,8 @@
-import { Alert, Button, Loader, Stack, Text } from "@mantine/core";
+import { Alert, Button, Group, Loader, Stack, Text } from "@mantine/core";
 import { COPY, runStatusLabel } from "../../lib/copy";
 import type { RunPayload } from "../../hooks/types";
 import AnswerCards from "./AnswerCards";
+import ComboProgressGrid from "./ComboProgressGrid";
 import ComboRunSummary from "./ComboRunSummary";
 import PlaygroundIdle from "./PlaygroundIdle";
 import ResultsPanel from "./ResultsPanel";
@@ -17,6 +18,9 @@ type Props = {
   onCancel: () => void;
   canceling: boolean;
   onRunAgain: () => void;
+  totalQuestionCount: number;
+  onEscalate: () => void;
+  escalating: boolean;
 };
 
 export default function CanvasPanel({
@@ -29,10 +33,16 @@ export default function CanvasPanel({
   onCancel,
   canceling,
   onRunAgain,
+  totalQuestionCount,
+  onEscalate,
+  escalating,
 }: Props) {
   const status = run?.run.status;
   const isActive = status === "ingesting" || status === "running" || status === "aggregating";
   const isComplete = status === "complete" || status === "budget_exceeded";
+  const isMultiQuestion = (run?.questions?.length ?? 0) > 1;
+  const canEscalate =
+    isComplete && !isMultiQuestion && totalQuestionCount > 1;
 
   return (
     <Stack gap="md" className="canvas-panel">
@@ -77,12 +87,21 @@ export default function CanvasPanel({
             </Alert>
           )}
 
-          <AnswerCards
-            combos={run.comboResults ?? []}
-            grid={run.grid ?? []}
-            selectedTrialId={selectedTrialId}
-            onSelect={onSelectTrial}
-          />
+          {isMultiQuestion ? (
+            <ComboProgressGrid
+              combos={run.comboResults ?? []}
+              grid={run.grid ?? []}
+              selectedTrialId={selectedTrialId}
+              onSelect={onSelectTrial}
+            />
+          ) : (
+            <AnswerCards
+              combos={run.comboResults ?? []}
+              grid={run.grid ?? []}
+              selectedTrialId={selectedTrialId}
+              onSelect={onSelectTrial}
+            />
+          )}
 
           <RunTimeline runId={runId} runStatus={run.run.status} />
         </>
@@ -91,9 +110,21 @@ export default function CanvasPanel({
       {run && isComplete && (
         <>
           <ResultsPanel runName={run.run.name} combos={run.comboResults} />
-          <Button type="button" variant="light" onClick={onRunAgain} w="fit-content">
-            {COPY.app.runAgain}
-          </Button>
+          <Group gap="sm">
+            {canEscalate && (
+              <Button
+                type="button"
+                variant="filled"
+                onClick={onEscalate}
+                loading={escalating}
+              >
+                {COPY.app.escalateButton(totalQuestionCount)}
+              </Button>
+            )}
+            <Button type="button" variant="light" onClick={onRunAgain} w="fit-content">
+              {COPY.app.runAgain}
+            </Button>
+          </Group>
         </>
       )}
     </Stack>

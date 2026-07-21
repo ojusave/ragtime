@@ -1,4 +1,4 @@
-import { Badge, Box, Stack, Text } from "@mantine/core";
+import { Badge, Box, Group, Stack, Text, Tooltip } from "@mantine/core";
 import type { TrialStages } from "@ragtime/core";
 import { COPY } from "../lib/copy";
 import { formatReceipt } from "../lib/receipt";
@@ -125,15 +125,26 @@ export default function TrialStagesPanel({
 
       {judge && (
         <section className="judge-section">
-          <Text fw={600} size="sm">
-            {COPY.stages.rateAnswer(judge.judgeModel.split("/").pop() ?? judge.judgeModel)}
-          </Text>
+          <Group gap="xs" align="center">
+            <Text fw={600} size="sm">
+              {COPY.stages.rateAnswer(judge.judgeModel.split("/").pop() ?? judge.judgeModel)}
+            </Text>
+            {judge.correctness == null && (
+              <Tooltip label={COPY.app.judgeOnlyTooltip} multiline w={240} withArrow>
+                <Badge color="grape" variant="light" size="sm" style={{ cursor: "help" }}>
+                  {COPY.app.judgeOnlyBadge}
+                </Badge>
+              </Tooltip>
+            )}
+          </Group>
           {receiptLine(judge)}
           <div className="judge-score-grid" role="list" aria-label="Judge dimension scores">
             {[
-              ["Faithfulness", judge.faithfulness],
-              ["Correctness", judge.correctness],
-              ["Completeness", judge.completeness],
+              [COPY.app.faithfulnessDimension, judge.faithfulness],
+              ...(judge.correctness == null
+                ? []
+                : [[COPY.app.correctnessDimension, judge.correctness] as const]),
+              [COPY.app.completenessDimension, judge.completeness],
             ].map(([label, value]) => {
               const score = scorePercent(value as number);
               return (

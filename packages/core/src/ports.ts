@@ -162,7 +162,8 @@ export interface Chunker {
 
 export type JudgeResult = {
   faithfulness: number;
-  correctness: number;
+  /** Null when no reference answer exists: correctness is not scored. */
+  correctness: number | null;
   completeness: number;
   rationale: string;
 };
@@ -172,7 +173,8 @@ export type ScorerInput = {
   judgeModel: string;
   context: string;
   question: string;
-  referenceAnswer: string;
+  /** Null or empty when the question has no reference answer. */
+  referenceAnswer: string | null;
   candidate: string;
   costController?: CostController;
   operationPrefix?: string;

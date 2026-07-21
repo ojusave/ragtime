@@ -101,7 +101,8 @@ export type TrialStageGeneration = {
 
 export type TrialStageJudge = {
   faithfulness: number;
-  correctness: number;
+  /** Null when the question has no reference answer: correctness cannot be judged. */
+  correctness: number | null;
   completeness: number;
   rationale: string;
   latencyMs: number;
@@ -160,6 +161,17 @@ export function computeOverallScore(
     completeness: 0.2,
   }
 ): number {
+  // When correctness is not scored (no reference answer), renormalize the
+  // remaining weights so the overall score stays on the same 0-10 scale.
+  if (judge.correctness == null) {
+    const denominator = weights.faithfulness + weights.completeness;
+    if (denominator <= 0) return 0;
+    return (
+      (weights.faithfulness * judge.faithfulness +
+        weights.completeness * judge.completeness) /
+      denominator
+    );
+  }
   return (
     weights.faithfulness * judge.faithfulness +
     weights.correctness * judge.correctness +

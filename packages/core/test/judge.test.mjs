@@ -37,6 +37,52 @@ test("judge parsing rejects non-finite and out-of-range scores", () => {
   }
 });
 
+test("judge parsing returns null correctness when correctness is not required", () => {
+  assert.deepEqual(
+    parseJudgeJson(
+      JSON.stringify({ faithfulness: 8, completeness: 6, rationale: "grounded" }),
+      { requireCorrectness: false }
+    ),
+    { faithfulness: 8, correctness: null, completeness: 6, rationale: "grounded" }
+  );
+
+  // A missing correctness field must not throw when it is not required.
+  assert.doesNotThrow(() =>
+    parseJudgeJson(
+      JSON.stringify({ faithfulness: 5, completeness: 5, rationale: "ok" }),
+      { requireCorrectness: false }
+    )
+  );
+});
+
+test("judge does not score correctness when there is no reference answer", async () => {
+  const seen = [];
+  const gateway = {
+    async chat(req) {
+      const user = req.messages.find((m) => m.role === "user")?.content ?? "";
+      seen.push(user);
+      const hasReference = user.includes("REFERENCE:");
+      const payload = { faithfulness: 8, completeness: 6, rationale: "no ref" };
+      if (hasReference) payload.correctness = 7;
+      return { text: JSON.stringify(payload), receipt: { latencyMs: 5, costUsd: 0 } };
+    },
+  };
+
+  const result = await rubricScorer.score({
+    gateway,
+    judgeModel: "judge/model",
+    context: "context",
+    question: "question",
+    referenceAnswer: null,
+    candidate: "candidate",
+  });
+
+  assert.equal(result.correctness, null);
+  assert.equal(result.faithfulness, 8);
+  assert.equal(result.completeness, 6);
+  assert.ok(!seen[0].includes("REFERENCE:"), "no-reference prompt omits REFERENCE");
+});
+
 test("judge retries only malformed output and accounts for both calls", async () => {
   const calls = [];
   const gateway = {

@@ -16,7 +16,7 @@ export type RunTrialPipelineInput = {
   corpusId: string;
   questionId: string;
   questionText: string;
-  referenceAnswer: string;
+  referenceAnswer: string | null;
   embeddingModel: string;
   rerankModel: string | null;
   genModel: string;

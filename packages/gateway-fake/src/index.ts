@@ -72,14 +72,15 @@ export function createFakeGateway(): ModelGateway {
       const questionMatch = user.match(/QUESTION:\s*([\s\S]*?)(?:\n\nREFERENCE:|$)/);
       const question = questionMatch?.[1]?.trim() ?? user;
 
-      if (req.jsonSchema || user.includes("REFERENCE:")) {
-        const text = JSON.stringify({
+      if (req.jsonSchema || user.includes("CANDIDATE:")) {
+        const hasReference = user.includes("REFERENCE:");
+        const payload: Record<string, unknown> = {
           faithfulness: context ? 8 : 7,
-          correctness: 7,
           completeness: 6,
           rationale: "Fake judge scored from context overlap.",
-        });
-        return { text, receipt: fakeReceipt(15) };
+        };
+        if (hasReference) payload.correctness = 7;
+        return { text: JSON.stringify(payload), receipt: fakeReceipt(15) };
       }
 
       if (!context) {

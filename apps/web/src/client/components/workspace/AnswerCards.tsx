@@ -1,4 +1,4 @@
-import { Badge, Group, Loader, Stack, Text } from "@mantine/core";
+import { Badge, Group, Loader, Stack, Text, Tooltip } from "@mantine/core";
 import type { ComboResult } from "@ragtime/core";
 import { COPY, TEST_STATUS_LABEL } from "../../lib/copy";
 import { comboModels } from "../../lib/combo-display";
@@ -111,9 +111,18 @@ export default function AnswerCards({ combos, grid, selectedTrialId, onSelect }:
               </div>
 
               <Group justify="space-between" align="center" className="answer-card-footer">
-                <Badge color={statusColor(status)} variant="light" size="sm">
-                  {statusLabel}
-                </Badge>
+                <Group gap={6} align="center">
+                  <Badge color={statusColor(status)} variant="light" size="sm">
+                    {statusLabel}
+                  </Badge>
+                  {cell?.judgeOnly && (
+                    <Tooltip label={COPY.app.judgeOnlyTooltip} multiline w={220} withArrow>
+                      <Badge color="grape" variant="light" size="sm" style={{ cursor: "help" }}>
+                        {COPY.app.judgeOnlyBadge}
+                      </Badge>
+                    </Tooltip>
+                  )}
+                </Group>
                 <span className={`answer-card-score score-tone--${tone}`}>
                   <span className="answer-card-score-label">{COPY.app.judgeScore}</span>
                   <span className="answer-card-score-number">{score ?? "—"}</span>

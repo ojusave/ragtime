@@ -3,7 +3,7 @@ import type { ComboResult } from "@ragtime/core";
 export type SampleQuestion = {
   id: string;
   text: string;
-  referenceAnswer: string;
+  referenceAnswer: string | null;
 };
 
 export type DemoInfo = {
@@ -51,6 +51,7 @@ export type GridCell = {
   overallScore: string | null;
   attempts: number;
   answer: string | null;
+  judgeOnly?: boolean;
 };
 
 export type RunPayload = {
@@ -83,7 +84,7 @@ export type TrialDetail = {
     overallScore: string | null;
     status: string;
   };
-  question: { text: string; referenceAnswer: string };
+  question: { text: string; referenceAnswer: string | null };
   combo: { embeddingModel: string; rerankModel: string | null; genModel: string };
   chunks: { id: string; idx: number; content: string }[];
 };
