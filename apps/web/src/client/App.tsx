@@ -22,7 +22,12 @@ export default function App() {
   const gatewayLabel = gateway?.label ?? "";
 
   return (
-    <AppShell header={{ height: 56 }} padding={0} className="pg-shell">
+    <AppShell
+      header={{ height: 56 }}
+      footer={{ height: 50 }}
+      padding={0}
+      className="pg-shell"
+    >
       <AppShell.Header className="pg-header">
         <Group h="100%" justify="space-between" wrap="nowrap" className="pg-nav">
           <Anchor component={Link} to="/" className="pg-brand">
@@ -53,7 +58,7 @@ export default function App() {
         </Routes>
       </AppShell.Main>
 
-      <Box component="footer" className="pg-footer">
+      <AppShell.Footer className="pg-footer">
         <Group justify="space-between" wrap="wrap" className="pg-footer-inner">
           <span className="pg-footer-status">
             {gatewayLabel ? COPY.app.footerStatus(gatewayLabel) : ""}
@@ -79,7 +84,7 @@ export default function App() {
             ) : null}
           </Group>
         </Group>
-      </Box>
+      </AppShell.Footer>
 
       <HowItWorksModal opened={showHow} onClose={() => setShowHow(false)} />
     </AppShell>
