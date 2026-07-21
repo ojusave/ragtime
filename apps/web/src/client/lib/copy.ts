@@ -176,6 +176,12 @@ export const COPY = {
     spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
     elapsed: (sec: number) => `${sec.toFixed(1)}s`,
     bestScore: "Best score",
+    answersTitle: "Answers",
+    answersHint: "Same question, one answer per setup. Select one to see its passages.",
+    answerPending: "Waiting to run",
+    answerRunning: "Generating answer…",
+    answerFailed: "This setup did not produce an answer.",
+    answerEmpty: "No answer returned.",
     setups: "Setups",
     setupCount: (n: number) => `${n} setup${n === 1 ? "" : "s"}`,
     setupsScored: (scored: number, total: number) =>

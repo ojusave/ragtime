@@ -50,6 +50,7 @@ export type GridCell = {
   status: string;
   overallScore: string | null;
   attempts: number;
+  answer: string | null;
 };
 
 export type RunPayload = {

@@ -1,7 +1,7 @@
 import { Alert, Button, Loader, Stack, Text } from "@mantine/core";
 import { COPY, runStatusLabel } from "../../lib/copy";
 import type { RunPayload } from "../../hooks/types";
-import ComboArenaList from "./ComboArenaList";
+import AnswerCards from "./AnswerCards";
 import ComboRunSummary from "./ComboRunSummary";
 import PlaygroundIdle from "./PlaygroundIdle";
 import ResultsPanel from "./ResultsPanel";
@@ -77,7 +77,7 @@ export default function CanvasPanel({
             </Alert>
           )}
 
-          <ComboArenaList
+          <AnswerCards
             combos={run.comboResults ?? []}
             grid={run.grid ?? []}
             selectedTrialId={selectedTrialId}
