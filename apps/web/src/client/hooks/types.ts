@@ -28,6 +28,14 @@ export type GatewayIdentity = {
   creditsUrl?: string;
 };
 
+/** One explicit pipeline the user composes: embedding, optional reranker, answer model. */
+export type Setup = {
+  id: string;
+  embeddingModel: string;
+  rerankModel: string | null;
+  genModel: string;
+};
+
 export type Catalog = {
   embedding: CatalogModel[];
   rerank: CatalogModel[];

@@ -22,6 +22,14 @@ export const judgeWeightsSchema = z
     { message: "Judge weights must sum to 1." }
   );
 
+/** One explicit pipeline: a chosen embedding, optional reranker, and answer model. */
+export const setupSchema = z.object({
+  embeddingModel: modelIdSchema,
+  rerankModel: modelIdSchema.nullable(),
+  genModel: modelIdSchema,
+});
+export type Setup = z.infer<typeof setupSchema>;
+
 export const runConfigSchema = z.object({
   corpusId: z.string().uuid(),
   name: z.string().min(1).max(200),
@@ -40,6 +48,12 @@ export const runConfigSchema = z.object({
     .min(1)
     .max(MAX_MODEL_OPTIONS)
     .transform(unique),
+  /**
+   * Explicit list of pipelines to run. When present, combos come from this list
+   * instead of the cross-product of the model arrays above. The arrays are still
+   * used to embed the corpus, so callers may leave them as the union of setups.
+   */
+  setups: z.array(setupSchema).min(1).max(MAX_MODEL_OPTIONS).optional(),
   questionIds: z.union([
     z.literal("all"),
     z

@@ -63,6 +63,19 @@ export function formatMatrixSummary(args: {
   return { line, trialCount, overLimit };
 }
 
+/** Summary line for explicit-setup mode, counting one answer per setup per question. */
+export function formatSetupSummary(args: {
+  setupCount: number;
+  questionCount: number;
+  budgetUsd: number;
+  maxTrials: number;
+}): { line: string; trialCount: number; overLimit: boolean } {
+  const trialCount = args.setupCount * args.questionCount;
+  const overLimit = trialCount > args.maxTrials;
+  const line = `${args.setupCount} setup${args.setupCount === 1 ? "" : "s"} × ${args.questionCount} question${args.questionCount === 1 ? "" : "s"} = ${trialCount} answer${trialCount === 1 ? "" : "s"}. Budget $${args.budgetUsd.toFixed(2)}.`;
+  return { line, trialCount, overLimit };
+}
+
 export type FriendlyErrorMeta = {
   /** Machine-readable provider error code, mapped before any string heuristics. */
   code?: string;
@@ -133,6 +146,14 @@ export const COPY = {
     noneOption: "None",
     suggested: "Suggested",
     starterPreset: "Suggested setups",
+    addSetup: "Add setup",
+    removeSetup: "Remove setup",
+    setupNumber: (n: number) => `Setup ${n}`,
+    emptySetups: "Add a setup to compose your first pipeline.",
+    matrixMode: "Matrix mode (cross every model)",
+    matrixModeHint:
+      "Pick models per stage and run every combination. Expanding fills the setup list above.",
+    expandMatrix: "Expand into setups",
     advanced: "Retrieval settings",
     retrieveLabel: "Retrieve K",
     finalKLabel: "Final K",

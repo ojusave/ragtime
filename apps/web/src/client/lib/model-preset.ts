@@ -1,4 +1,11 @@
-import type { Catalog, CatalogModel } from "../hooks/types";
+import type { Catalog, CatalogModel, Setup } from "../hooks/types";
+
+let setupSeq = 0;
+/** Stable client-only id for a setup card; never sent to the server. */
+export function newSetupId(): string {
+  setupSeq += 1;
+  return `setup-${Date.now().toString(36)}-${setupSeq}`;
+}
 
 /** Numeric price for sorting; missing or invalid prices sort last. */
 export function priceNumber(value?: string): number {
@@ -46,5 +53,31 @@ export function deriveStarterPreset(
     budgetGenModel: chats[0]!.id,
     midGenModel: chats[Math.floor(n / 2)]!.id,
     premiumGenModel: chats[n - 1]!.id,
+  };
+}
+
+/**
+ * Two starter setups the user can run immediately: the cheapest embedding paired
+ * with a budget answer model and a mid-tier answer model, both without reranking.
+ */
+export function deriveStarterSetups(catalog: Catalog | undefined): Setup[] {
+  const preset = deriveStarterPreset(catalog);
+  if (!preset) return [];
+  const genModels = [...new Set([preset.budgetGenModel, preset.midGenModel])];
+  return genModels.map((genModel) => ({
+    id: newSetupId(),
+    embeddingModel: preset.embeddingModel,
+    rerankModel: null,
+    genModel,
+  }));
+}
+
+/** A blank setup seeded from the first available model of each kind. */
+export function blankSetup(catalog: Catalog | undefined): Setup {
+  return {
+    id: newSetupId(),
+    embeddingModel: catalog?.embedding[0]?.id ?? "",
+    rerankModel: null,
+    genModel: catalog?.chat[0]?.id ?? "",
   };
 }

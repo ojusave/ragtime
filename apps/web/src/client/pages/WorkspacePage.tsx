@@ -45,11 +45,11 @@ export default function WorkspacePage() {
   }, [samples, selectedSampleId]);
 
   useEffect(() => {
-    if (matrix.catalog && !matrix.presetApplied && matrix.embModels.length === 0) {
+    if (matrix.catalog && !matrix.presetApplied && matrix.setups.length === 0) {
       matrix.applyStarterPreset();
       matrix.setPresetApplied(true);
     }
-  }, [matrix.catalog, matrix.presetApplied, matrix.embModels.length, matrix]);
+  }, [matrix.catalog, matrix.presetApplied, matrix.setups.length, matrix]);
 
   const selectedSample = useMemo(
     () => samples.find((s) => s.id === selectedSampleId) ?? null,
@@ -82,14 +82,15 @@ export default function WorkspacePage() {
 
     if (!questionId) return;
 
-    const rerankModels = [...(matrix.noRerank ? [null] : []), ...matrix.rerModels];
     workspace.start.mutate({
       corpusId: demo.corpusId,
       questionId,
       name: `Comparison ${new Date().toLocaleTimeString()}`,
-      embeddingModels: matrix.embModels,
-      rerankModels,
-      genModels: matrix.genModels,
+      setups: matrix.setups.map((setup) => ({
+        embeddingModel: setup.embeddingModel,
+        rerankModel: setup.rerankModel,
+        genModel: setup.genModel,
+      })),
       retrieveK: matrix.retrieveK,
       finalK: matrix.finalK,
       budgetUsd: Number(matrix.budget) || 5,

@@ -88,25 +88,34 @@ export function registerRunRoutes(app: FastifyInstance): void {
         .returning();
       if (!createdRun) throw new Error("Failed to create run.");
 
-      const comboRows = [];
-      for (const emb of plan.config.embeddingModels) {
-        for (const rer of plan.config.rerankModels) {
-          for (const gen of plan.config.genModels) {
-            comboRows.push({
-              runId: createdRun.id,
-              embeddingModel: emb,
-              rerankModel: rer,
-              genModel: gen,
-              retrieveK: plan.config.retrieveK,
-              finalK: plan.config.finalK,
-              relevanceThreshold:
-                plan.config.relevanceThreshold != null
-                  ? String(plan.config.relevanceThreshold)
-                  : null,
-            });
-          }
-        }
-      }
+      const relevanceThreshold =
+        plan.config.relevanceThreshold != null
+          ? String(plan.config.relevanceThreshold)
+          : null;
+      const comboSeeds = plan.config.setups
+        ? plan.config.setups.map((setup) => ({
+            embeddingModel: setup.embeddingModel,
+            rerankModel: setup.rerankModel,
+            genModel: setup.genModel,
+          }))
+        : plan.config.embeddingModels.flatMap((embeddingModel) =>
+            plan.config.rerankModels.flatMap((rerankModel) =>
+              plan.config.genModels.map((genModel) => ({
+                embeddingModel,
+                rerankModel,
+                genModel,
+              }))
+            )
+          );
+      const comboRows = comboSeeds.map((seed) => ({
+        runId: createdRun.id,
+        embeddingModel: seed.embeddingModel,
+        rerankModel: seed.rerankModel,
+        genModel: seed.genModel,
+        retrieveK: plan.config.retrieveK,
+        finalK: plan.config.finalK,
+        relevanceThreshold,
+      }));
       await tx.insert(combos).values(comboRows);
       return createdRun;
     });

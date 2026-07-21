@@ -7,13 +7,17 @@ import type { RunPayload, TrialDetail } from "./types";
 
 const ACTIVE = new Set(["ingesting", "running", "aggregating", "draft"]);
 
+type SetupInput = {
+  embeddingModel: string;
+  rerankModel: string | null;
+  genModel: string;
+};
+
 type StartArgs = {
   corpusId: string;
   questionId: string;
   name: string;
-  embeddingModels: string[];
-  rerankModels: (string | null)[];
-  genModels: string[];
+  setups: SetupInput[];
   retrieveK: number;
   finalK: number;
   budgetUsd: number;
@@ -40,15 +44,22 @@ export function useWorkspaceRun() {
 
   const start = useMutation({
     mutationFn: async (args: StartArgs) => {
-      const rerankModels = args.rerankModels;
+      // The schema still requires the model arrays; derive them from the setups
+      // so callers only compose explicit pipelines. The server re-normalizes.
+      const embeddingModels = [
+        ...new Set(args.setups.map((s) => s.embeddingModel)),
+      ];
+      const rerankModels = [...new Set(args.setups.map((s) => s.rerankModel))];
+      const genModels = [...new Set(args.setups.map((s) => s.genModel))];
       return api<{ runId: string }>("/api/runs", {
         method: "POST",
         body: JSON.stringify({
           corpusId: args.corpusId,
           name: args.name,
-          embeddingModels: args.embeddingModels,
+          embeddingModels,
           rerankModels,
-          genModels: args.genModels,
+          genModels,
+          setups: args.setups,
           questionIds: [args.questionId],
           retrieveK: args.retrieveK,
           finalK: args.finalK,

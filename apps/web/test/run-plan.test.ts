@@ -183,6 +183,30 @@ test("requires a judge model from the request or the env fallback", () => {
   assert.equal(getRunPlanRejection(blankFallback, 324)?.statusCode, 400);
 });
 
+test("explicit setups drive combos and normalize the model arrays", () => {
+  const config = parseConfig({
+    embeddingModels: ["embed/a", "embed/b", "embed/unused"],
+    rerankModels: [null, "rerank/a"],
+    genModels: ["gen/a", "gen/b", "gen/unused"],
+    setups: [
+      { embeddingModel: "embed/a", rerankModel: null, genModel: "gen/a" },
+      { embeddingModel: "embed/b", rerankModel: "rerank/a", genModel: "gen/b" },
+      // Duplicate of the first setup: collapsed.
+      { embeddingModel: "embed/a", rerankModel: null, genModel: "gen/a" },
+    ],
+    questionIds: [questionA, questionB],
+  });
+
+  const plan = createRunPlan(config, [questionA, questionB]);
+  assert.equal(plan.comboCount, 2);
+  assert.equal(plan.trialCount, 4);
+  assert.equal(plan.config.setups?.length, 2);
+  // Model arrays collapse to the union actually referenced by the setups.
+  assert.deepEqual(plan.config.embeddingModels, ["embed/a", "embed/b"]);
+  assert.deepEqual(plan.config.rerankModels, [null, "rerank/a"]);
+  assert.deepEqual(plan.config.genModels, ["gen/a", "gen/b"]);
+});
+
 test("caps an all-question snapshot even when the trial cap is raised", () => {
   const authorized = Array.from(
     { length: 1_001 },
