@@ -23,6 +23,8 @@ export function getAppConfig() {
     /** Adapter-enforced maximum charge reserved for any single provider call. */
     maxProviderCallUsd: envNumber("MAX_PROVIDER_CALL_USD", 0.5),
     embedBatchSize: envNumber("EMBED_BATCH_SIZE", 64),
+    /** Max parallel ingest_document subtasks per wave. Bounds DB connections. */
+    docIngestFanoutBatch: envNumber("DOC_INGEST_FANOUT_BATCH", 8),
     /** Max parallel workflow subtasks when embedding a corpus (per model). */
     embedFanoutBatch: envNumber("EMBED_FANOUT_BATCH", 6),
     /** Max parallel run_trial subtasks per wave during a bake-off. */

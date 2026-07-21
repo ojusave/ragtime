@@ -174,10 +174,11 @@ export const runBakeoff = task(
           sql`${documents.corpusId} = ${run.corpusId} AND ${documents.status} != 'ready'`
         );
 
-      const ingestResults = await Promise.allSettled(
-        pendingDocs.map((document) =>
-          ingestDocument({ documentId: document.id, runId })
-        )
+      const { docIngestFanoutBatch } = getAppConfig();
+      const ingestResults = await runInWaves(
+        pendingDocs,
+        docIngestFanoutBatch,
+        (document) => ingestDocument({ documentId: document.id, runId })
       );
       if (ingestResults.some((result) => result.status === "rejected")) {
         return await failPhase("ingesting", "Document ingestion failed");
