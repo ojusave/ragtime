@@ -138,11 +138,22 @@ export const COPY = {
     yourQuestion: "Question text",
     embedLabel: "Embedding",
     embedHint: "Finds candidate passages",
+    embedInfo:
+      "The embedding model turns your question and each passage into vectors, then finds the passages whose vectors are closest. This is the first-pass search.",
     rerankLabel: "Rerank (optional)",
     rerankHint: "Reorders passages before answering",
+    rerankInfo:
+      "A reranker re-scores the passages from the first search and moves the most relevant ones to the top. It is optional: leave it as None to skip this step.",
     noRerankLabel: "Include runs without rerank",
     genLabel: "Generation",
     genHint: "Writes the answer",
+    genInfo:
+      "The generation model reads the top passages and writes the final answer. This is the answer you compare across setups.",
+    judgeLabel: "Judge model",
+    judgeHint: "Scores every answer",
+    judgeInfo:
+      "The judge model reads each answer with the passages behind it, then scores faithfulness, correctness, and completeness. Every setup in a run is scored by the same judge.",
+    fieldInfoAria: (name: string) => `What is ${name}?`,
     noneOption: "None",
     suggested: "Suggested",
     starterPreset: "Suggested setups",

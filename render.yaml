@@ -28,6 +28,8 @@ services:
           envVarKey: RENDER_EXTERNAL_URL
       - key: OPENROUTER_APP_TITLE
         value: RAGtime
+      - key: JUDGE_MODEL
+        sync: false
       - key: WORKFLOW_SLUG
         value: ragtime-workflows
       - key: MAX_RUN_BUDGET_USD

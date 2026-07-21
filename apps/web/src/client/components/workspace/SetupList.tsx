@@ -2,6 +2,7 @@ import { ActionIcon, Group, Paper, Select, Stack, Text } from "@mantine/core";
 import { COPY } from "../../lib/copy";
 import type { Catalog, Setup } from "../../hooks/types";
 import ProviderMark from "./ProviderMark";
+import { LabelWithInfo } from "../InfoHint";
 
 type Props = {
   catalog: Catalog | undefined;
@@ -62,7 +63,13 @@ export default function SetupList({ catalog, setups, onUpdate, onRemove }: Props
           <Stack gap={6}>
             <Select
               {...selectProps}
-              label={COPY.app.embedLabel}
+              label={
+                <LabelWithInfo
+                  label={COPY.app.embedLabel}
+                  info={COPY.app.embedInfo}
+                  ariaLabel={COPY.app.fieldInfoAria(COPY.app.embedLabel)}
+                />
+              }
               data={modelOptions(catalog?.embedding)}
               renderOption={renderModelOption}
               value={setup.embeddingModel || null}
@@ -72,7 +79,13 @@ export default function SetupList({ catalog, setups, onUpdate, onRemove }: Props
             />
             <Select
               {...selectProps}
-              label={COPY.app.rerankLabel}
+              label={
+                <LabelWithInfo
+                  label={COPY.app.rerankLabel}
+                  info={COPY.app.rerankInfo}
+                  ariaLabel={COPY.app.fieldInfoAria(COPY.app.rerankLabel)}
+                />
+              }
               clearable
               placeholder={COPY.app.noneOption}
               data={modelOptions(catalog?.rerank)}
@@ -82,7 +95,13 @@ export default function SetupList({ catalog, setups, onUpdate, onRemove }: Props
             />
             <Select
               {...selectProps}
-              label={COPY.app.genLabel}
+              label={
+                <LabelWithInfo
+                  label={COPY.app.genLabel}
+                  info={COPY.app.genInfo}
+                  ariaLabel={COPY.app.fieldInfoAria(COPY.app.genLabel)}
+                />
+              }
               data={modelOptions(catalog?.chat)}
               renderOption={renderModelOption}
               value={setup.genModel || null}

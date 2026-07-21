@@ -334,11 +334,9 @@
 }
 
 .workspace-pane--canvas {
-  background-color: var(--rag-page);
-  background-image:
-    linear-gradient(var(--rag-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--rag-grid) 1px, transparent 1px);
-  background-size: 32px 32px;
+  background:
+    radial-gradient(120% 60% at 50% -10%, var(--pg-accent-soft), transparent 60%),
+    var(--rag-page);
   border-radius: 0;
 }
 
@@ -738,6 +736,8 @@
 }
 
 .pg-footer {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
   min-height: var(--rag-footer-h);
   border-top: 1px solid var(--rag-border);

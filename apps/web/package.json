@@ -21,7 +21,6 @@
     "@mantine/notifications": "^7.17.1",
     "@ragtime/core": "workspace:*",
     "@ragtime/db": "workspace:*",
-    "@ragtime/gateway-fake": "workspace:*",
     "@ragtime/gateway-openrouter": "workspace:*",
     "@renderinc/sdk": "^0.5.0",
     "@tanstack/react-query": "^5.67.2",

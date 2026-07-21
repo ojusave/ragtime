@@ -40,9 +40,6 @@ importers:
       '@ragtime/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@ragtime/gateway-fake':
-        specifier: workspace:*
-        version: link:../../packages/gateway-fake
       '@ragtime/gateway-openrouter':
         specifier: workspace:*
         version: link:../../packages/gateway-openrouter
@@ -119,9 +116,6 @@ importers:
       '@ragtime/db':
         specifier: workspace:*
         version: link:../../packages/db
-      '@ragtime/gateway-fake':
-        specifier: workspace:*
-        version: link:../../packages/gateway-fake
       '@ragtime/gateway-openrouter':
         specifier: workspace:*
         version: link:../../packages/gateway-openrouter
@@ -194,22 +188,6 @@ importers:
       fflate:
         specifier: ^0.8.2
         version: 0.8.3
-      tsx:
-        specifier: ^4.19.3
-        version: 4.23.0
-      typescript:
-        specifier: ^5.7.3
-        version: 5.9.3
-
-  packages/gateway-fake:
-    dependencies:
-      '@ragtime/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@types/node':
-        specifier: ^22.13.10
-        version: 22.20.0
       tsx:
         specifier: ^4.19.3
         version: 4.23.0

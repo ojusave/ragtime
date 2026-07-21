@@ -97,6 +97,7 @@ export default function WorkspacePage() {
       retrieveK: matrix.retrieveK,
       finalK: matrix.finalK,
       budgetUsd: Number(matrix.budget) || 5,
+      judgeModel: matrix.judgeModel,
     });
   }
 
@@ -115,6 +116,7 @@ export default function WorkspacePage() {
       retrieveK: matrix.retrieveK,
       finalK: matrix.finalK,
       budgetUsd: Number(matrix.budget) || 5,
+      judgeModel: matrix.judgeModel,
     });
   }
 
