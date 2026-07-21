@@ -16,6 +16,7 @@ import type { SampleQuestion } from "../../hooks/types";
 import type { useModelMatrix } from "../../hooks/useModelMatrix";
 import ProviderMark from "./ProviderMark";
 import SetupList from "./SetupList";
+import { LabelWithInfo } from "../InfoHint";
 
 type Matrix = ReturnType<typeof useModelMatrix>;
 
@@ -76,6 +77,8 @@ export default function ControlsPanel({
     setFinalK,
     budget,
     setBudget,
+    judgeModel,
+    setJudgeModel,
     matrix: summary,
     applyStarterPreset,
   } = matrix;
@@ -131,6 +134,28 @@ export default function ControlsPanel({
         + {COPY.app.addSetup}
       </Button>
 
+      <Select
+        {...selectFieldProps}
+        label={
+          <LabelWithInfo
+            label={COPY.app.judgeLabel}
+            info={COPY.app.judgeInfo}
+            ariaLabel={COPY.app.fieldInfoAria(COPY.app.judgeLabel)}
+          />
+        }
+        description={COPY.app.judgeHint}
+        searchable
+        data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
+        renderOption={({ option }) => (
+          <Group gap="xs" wrap="nowrap">
+            <ProviderMark modelId={option.value} />
+            <Text size="sm" lineClamp={1}>{option.label}</Text>
+          </Group>
+        )}
+        value={judgeModel || null}
+        onChange={(value) => setJudgeModel(value ?? "")}
+      />
+
       <Button variant="subtle" size="compact-xs" onClick={toggleMatrix} px={0}>
         {COPY.app.matrixMode} {matrixOpen ? "▾" : "▸"}
       </Button>
@@ -142,7 +167,13 @@ export default function ControlsPanel({
           </Text>
           <MultiSelect
             {...selectFieldProps}
-            label={COPY.app.embedLabel}
+            label={
+              <LabelWithInfo
+                label={COPY.app.embedLabel}
+                info={COPY.app.embedInfo}
+                ariaLabel={COPY.app.fieldInfoAria(COPY.app.embedLabel)}
+              />
+            }
             description={COPY.app.embedHint}
             searchable
             data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
@@ -165,7 +196,13 @@ export default function ControlsPanel({
 
           <MultiSelect
             {...selectFieldProps}
-            label={COPY.app.rerankLabel}
+            label={
+              <LabelWithInfo
+                label={COPY.app.rerankLabel}
+                info={COPY.app.rerankInfo}
+                ariaLabel={COPY.app.fieldInfoAria(COPY.app.rerankLabel)}
+              />
+            }
             description={COPY.app.rerankHint}
             searchable
             data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
@@ -181,7 +218,13 @@ export default function ControlsPanel({
 
           <MultiSelect
             {...selectFieldProps}
-            label={COPY.app.genLabel}
+            label={
+              <LabelWithInfo
+                label={COPY.app.genLabel}
+                info={COPY.app.genInfo}
+                ariaLabel={COPY.app.fieldInfoAria(COPY.app.genLabel)}
+              />
+            }
             description={COPY.app.genHint}
             searchable
             data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}

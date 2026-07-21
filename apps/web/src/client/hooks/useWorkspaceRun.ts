@@ -20,6 +20,8 @@ type StartArgs = {
   retrieveK: number;
   finalK: number;
   budgetUsd: number;
+  /** Chat model that scores every answer in the run. */
+  judgeModel: string;
   /** Single-question run: the question to answer. */
   questionId?: string;
   /** Escalation: run every setup against all corpus questions. */
@@ -72,6 +74,7 @@ export function useWorkspaceRun() {
           retrieveK: args.retrieveK,
           finalK: args.finalK,
           budgetUsd: args.budgetUsd,
+          judgeModel: args.judgeModel || undefined,
         }),
       });
     },

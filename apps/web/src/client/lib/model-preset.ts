@@ -72,6 +72,14 @@ export function deriveStarterSetups(catalog: Catalog | undefined): Setup[] {
   }));
 }
 
+/**
+ * Picks a sensible default judge from the catalog (a mid-tier chat model by
+ * completion price) so scoring works out of the box without a hardcoded slug.
+ */
+export function deriveJudgeModel(catalog: Catalog | undefined): string {
+  return deriveStarterPreset(catalog)?.midGenModel ?? "";
+}
+
 /** A blank setup seeded from the first available model of each kind. */
 export function blankSetup(catalog: Catalog | undefined): Setup {
   return {

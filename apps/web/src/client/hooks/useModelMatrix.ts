@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
 import { formatSetupSummary } from "../lib/copy";
 import {
   blankSetup,
+  deriveJudgeModel,
   deriveStarterSetups,
   newSetupId,
 } from "../lib/model-preset";
@@ -21,11 +22,21 @@ export function useModelMatrix(questionCount: number) {
   const [finalK, setFinalK] = useState(5);
   const [budget, setBudget] = useState<number | string>(5);
   const [presetApplied, setPresetApplied] = useState(false);
+  const [judgeModel, setJudgeModel] = useState<string>("");
 
   const { data: catalog } = useQuery({
     queryKey: ["models"],
     queryFn: () => api<Catalog>("/api/models"),
   });
+
+  // Seed the judge with a catalog-derived default once models load, unless the
+  // user has already chosen one.
+  useEffect(() => {
+    if (!judgeModel && catalog) {
+      const derived = deriveJudgeModel(catalog);
+      if (derived) setJudgeModel(derived);
+    }
+  }, [catalog, judgeModel]);
 
   const { data: appConfig } = useQuery({
     queryKey: ["config"],
@@ -123,6 +134,8 @@ export function useModelMatrix(questionCount: number) {
     setFinalK,
     budget,
     setBudget,
+    judgeModel,
+    setJudgeModel,
     matrix,
     canRun,
     applyStarterPreset,
