@@ -14,6 +14,14 @@ export function safePersistedError(
     .slice(0, MAX_PERSISTED_ERROR_LENGTH);
 }
 
+/** Machine-readable classification for a provider failure. */
+export type ProviderErrorCode =
+  | "insufficient_credits"
+  | "rate_limited"
+  | "auth"
+  | "invalid_model"
+  | "provider_unavailable";
+
 /**
  * Provider failure annotated with whether the paid request may have executed.
  * Unknown errors are treated as billing-ambiguous by the cost pipeline.
@@ -25,7 +33,11 @@ export class ProviderCallError extends Error {
     message: string,
     readonly billingAmbiguous: boolean,
     readonly status?: number,
-    readonly retryAfterMs?: number
+    readonly retryAfterMs?: number,
+    /** Code-based classification so callers never string-match error text. */
+    readonly code?: ProviderErrorCode,
+    /** Adapter-supplied link that helps the user resolve this error. */
+    readonly helpUrl?: string
   ) {
     super(message);
   }

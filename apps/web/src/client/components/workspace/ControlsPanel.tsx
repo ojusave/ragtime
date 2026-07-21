@@ -15,6 +15,7 @@ import { COPY } from "../../lib/copy";
 import type { SampleQuestion } from "../../hooks/types";
 import type { useModelMatrix } from "../../hooks/useModelMatrix";
 import ProviderMark from "./ProviderMark";
+import SetupList from "./SetupList";
 
 type Matrix = ReturnType<typeof useModelMatrix>;
 
@@ -53,8 +54,13 @@ export default function ControlsPanel({
   canRun,
 }: Props) {
   const [advancedOpen, { toggle: toggleAdvanced }] = useDisclosure(false);
+  const [matrixOpen, { toggle: toggleMatrix }] = useDisclosure(false);
   const {
     catalog,
+    setups,
+    addSetup,
+    updateSetup,
+    removeSetup,
     embModels,
     setEmbModels,
     rerModels,
@@ -63,6 +69,7 @@ export default function ControlsPanel({
     setGenModels,
     noRerank,
     setNoRerank,
+    expandMatrixToSetups,
     retrieveK,
     setRetrieveK,
     finalK,
@@ -113,57 +120,91 @@ export default function ControlsPanel({
         </Button>
       </Group>
 
-      <MultiSelect
-        {...selectFieldProps}
-        label={COPY.app.embedLabel}
-        searchable
-        data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
-        renderOption={({ option }) => (
-          <Group gap="xs" wrap="nowrap">
-            <ProviderMark modelId={option.value} />
-            <Text size="sm" lineClamp={1}>{option.label}</Text>
-          </Group>
-        )}
-        value={embModels}
-        onChange={setEmbModels}
+      <SetupList
+        catalog={catalog}
+        setups={setups}
+        onUpdate={updateSetup}
+        onRemove={removeSetup}
       />
 
-      <Checkbox
-        size="xs"
-        label={COPY.app.noRerankLabel}
-        checked={noRerank}
-        onChange={(e) => setNoRerank(e.currentTarget.checked)}
-      />
+      <Button variant="light" size="compact-sm" onClick={addSetup}>
+        + {COPY.app.addSetup}
+      </Button>
 
-      <MultiSelect
-        {...selectFieldProps}
-        label={COPY.app.rerankLabel}
-        searchable
-        data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
-        renderOption={({ option }) => (
-          <Group gap="xs" wrap="nowrap">
-            <ProviderMark modelId={option.value} />
-            <Text size="sm" lineClamp={1}>{option.label}</Text>
-          </Group>
-        )}
-        value={rerModels}
-        onChange={setRerModels}
-      />
+      <Button variant="subtle" size="compact-xs" onClick={toggleMatrix} px={0}>
+        {COPY.app.matrixMode} {matrixOpen ? "▾" : "▸"}
+      </Button>
 
-      <MultiSelect
-        {...selectFieldProps}
-        label={COPY.app.genLabel}
-        searchable
-        data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
-        renderOption={({ option }) => (
-          <Group gap="xs" wrap="nowrap">
-            <ProviderMark modelId={option.value} />
-            <Text size="sm" lineClamp={1}>{option.label}</Text>
-          </Group>
-        )}
-        value={genModels}
-        onChange={setGenModels}
-      />
+      <Collapse in={matrixOpen}>
+        <Stack gap="xs">
+          <Text size="xs" c="dimmed">
+            {COPY.app.matrixModeHint}
+          </Text>
+          <MultiSelect
+            {...selectFieldProps}
+            label={COPY.app.embedLabel}
+            description={COPY.app.embedHint}
+            searchable
+            data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
+            renderOption={({ option }) => (
+              <Group gap="xs" wrap="nowrap">
+                <ProviderMark modelId={option.value} />
+                <Text size="sm" lineClamp={1}>{option.label}</Text>
+              </Group>
+            )}
+            value={embModels}
+            onChange={setEmbModels}
+          />
+
+          <Checkbox
+            size="xs"
+            label={COPY.app.noRerankLabel}
+            checked={noRerank}
+            onChange={(e) => setNoRerank(e.currentTarget.checked)}
+          />
+
+          <MultiSelect
+            {...selectFieldProps}
+            label={COPY.app.rerankLabel}
+            description={COPY.app.rerankHint}
+            searchable
+            data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
+            renderOption={({ option }) => (
+              <Group gap="xs" wrap="nowrap">
+                <ProviderMark modelId={option.value} />
+                <Text size="sm" lineClamp={1}>{option.label}</Text>
+              </Group>
+            )}
+            value={rerModels}
+            onChange={setRerModels}
+          />
+
+          <MultiSelect
+            {...selectFieldProps}
+            label={COPY.app.genLabel}
+            description={COPY.app.genHint}
+            searchable
+            data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
+            renderOption={({ option }) => (
+              <Group gap="xs" wrap="nowrap">
+                <ProviderMark modelId={option.value} />
+                <Text size="sm" lineClamp={1}>{option.label}</Text>
+              </Group>
+            )}
+            value={genModels}
+            onChange={setGenModels}
+          />
+
+          <Button
+            variant="light"
+            size="compact-sm"
+            onClick={expandMatrixToSetups}
+            disabled={embModels.length === 0 || genModels.length === 0}
+          >
+            {COPY.app.expandMatrix}
+          </Button>
+        </Stack>
+      </Collapse>
 
       <Button variant="subtle" size="compact-xs" onClick={toggleAdvanced} px={0}>
         {COPY.app.advanced} {advancedOpen ? "▾" : "▸"}

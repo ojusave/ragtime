@@ -1,4 +1,4 @@
-/** Injected before OpenRouter calls when CHAOS_FAILURE_RATE > 0. Retry-safe: fires before spend. */
+/** Injected before provider calls when CHAOS_FAILURE_RATE > 0. Retry-safe: fires before spend. */
 export class ChaosError extends Error {
   constructor() {
     super("Chaos injection: simulated task failure");

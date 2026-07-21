@@ -58,10 +58,10 @@ export default function ComboRunSummary({ run }: { run: RunPayload | undefined }
           <Text fw={700} size="sm">
             {scores.scoredCount
               ? `${formatPoints(scores.earnedPoints)} / ${formatPoints(scores.possiblePoints)} points`
-              : "Waiting for scored trials"}
+              : COPY.app.awaitingScores}
           </Text>
           <Text size="xs" c="dimmed">
-            {scores.scoredCount} of {scores.totalCount} trial{scores.totalCount === 1 ? "" : "s"} scored
+            {COPY.app.setupsScored(scores.scoredCount, scores.totalCount)}
           </Text>
         </Stack>
       </div>
@@ -111,7 +111,7 @@ export default function ComboRunSummary({ run }: { run: RunPayload | undefined }
             <Text size="xs" c="dimmed">
               {scores.failedCount
                 ? `${scores.failedCount} failed`
-                : `${scores.totalCount} trial${scores.totalCount === 1 ? "" : "s"}`}
+                : COPY.app.setupCount(scores.totalCount)}
             </Text>
           </Stack>
         </Group>

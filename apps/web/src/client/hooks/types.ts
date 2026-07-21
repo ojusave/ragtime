@@ -3,7 +3,7 @@ import type { ComboResult } from "@ragtime/core";
 export type SampleQuestion = {
   id: string;
   text: string;
-  referenceAnswer: string;
+  referenceAnswer: string | null;
 };
 
 export type DemoInfo = {
@@ -15,10 +15,32 @@ export type DemoInfo = {
   name?: string;
 };
 
+export type CatalogModel = {
+  id: string;
+  name: string;
+  pricing?: { prompt?: string; completion?: string; request?: string };
+};
+
+export type GatewayIdentity = {
+  id: string;
+  label: string;
+  docsUrl?: string;
+  creditsUrl?: string;
+};
+
+/** One explicit pipeline the user composes: embedding, optional reranker, answer model. */
+export type Setup = {
+  id: string;
+  embeddingModel: string;
+  rerankModel: string | null;
+  genModel: string;
+};
+
 export type Catalog = {
-  embedding: { id: string; name: string }[];
-  rerank: { id: string; name: string }[];
-  chat: { id: string; name: string }[];
+  embedding: CatalogModel[];
+  rerank: CatalogModel[];
+  chat: CatalogModel[];
+  gateway: GatewayIdentity;
 };
 
 export type GridCell = {
@@ -28,6 +50,8 @@ export type GridCell = {
   status: string;
   overallScore: string | null;
   attempts: number;
+  answer: string | null;
+  judgeOnly?: boolean;
 };
 
 export type RunPayload = {
@@ -60,7 +84,7 @@ export type TrialDetail = {
     overallScore: string | null;
     status: string;
   };
-  question: { text: string; referenceAnswer: string };
+  question: { text: string; referenceAnswer: string | null };
   combo: { embeddingModel: string; rerankModel: string | null; genModel: string };
   chunks: { id: string; idx: number; content: string }[];
 };

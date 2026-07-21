@@ -1,4 +1,4 @@
-import { Badge, Group, Loader, Stack, Text } from "@mantine/core";
+import { Badge, Group, Loader, Stack, Text, Tooltip } from "@mantine/core";
 import { useMemo } from "react";
 import TrialStagesPanel from "../TrialStagesPanel";
 import { COPY, TEST_STATUS_LABEL } from "../../lib/copy";
@@ -50,10 +50,14 @@ export default function ComboInspector({
 
   return (
     <Stack gap="md" className="combo-inspector">
-      <section className={`inspector-score-card score-tone--${tone}`} aria-label="Selected trial score">
+      <section className={`inspector-score-card score-tone--${tone}`} aria-label={COPY.app.inspectorScoreAria}>
         <Group justify="space-between" align="flex-start" wrap="nowrap">
           <Stack gap={3}>
-            <Text className="inspector-score-label">Eval score</Text>
+            <Tooltip label={COPY.app.judgeScoreTooltip} multiline w={240} withArrow>
+              <Text className="inspector-score-label" style={{ cursor: "help" }}>
+                {COPY.app.judgeScore}
+              </Text>
+            </Tooltip>
             <Group gap={4} align="baseline">
               <Text component="span" className="inspector-score-value">
                 {score ?? "—"}

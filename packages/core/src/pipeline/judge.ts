@@ -1,5 +1,6 @@
 import {
   JUDGE_PROMPT,
+  JUDGE_PROMPT_NO_REFERENCE,
   buildJudgeUserPrompt,
 } from "../prompts.js";
 import type {
@@ -14,12 +15,16 @@ import { runCostedOperation } from "./cost.js";
 
 export const rubricScorer: Scorer = {
   async score(input: ScorerInput) {
+    const hasReference =
+      input.referenceAnswer != null && input.referenceAnswer.trim() !== "";
+    const systemPrompt = hasReference ? JUDGE_PROMPT : JUDGE_PROMPT_NO_REFERENCE;
     const userContent = buildJudgeUserPrompt(
       input.context,
       input.question,
-      input.referenceAnswer,
+      hasReference ? input.referenceAnswer : null,
       input.candidate
     );
+    const parseOptions = { requireCorrectness: hasReference };
 
     const operationPrefix = input.operationPrefix ?? `judge:${input.judgeModel}`;
     const first = await runCostedOperation({
@@ -30,7 +35,7 @@ export const rubricScorer: Scorer = {
         input.gateway.chat({
           model: input.judgeModel,
           messages: [
-            { role: "system", content: JUDGE_PROMPT },
+            { role: "system", content: systemPrompt },
             { role: "user", content: userContent },
           ],
           maxTokens: 768,
@@ -40,7 +45,7 @@ export const rubricScorer: Scorer = {
 
     try {
       return {
-        ...parseJudgeJson(first.text),
+        ...parseJudgeJson(first.text, parseOptions),
         receipt: first.receipt,
       };
     } catch {
@@ -52,7 +57,7 @@ export const rubricScorer: Scorer = {
           input.gateway.chat({
             model: input.judgeModel,
             messages: [
-              { role: "system", content: JUDGE_PROMPT },
+              { role: "system", content: systemPrompt },
               { role: "user", content: userContent + "\n\nRespond with JSON only." },
             ],
             maxTokens: 768,
@@ -60,7 +65,7 @@ export const rubricScorer: Scorer = {
           }),
       });
       return {
-        ...parseJudgeJson(retry.text),
+        ...parseJudgeJson(retry.text, parseOptions),
         receipt: combineReceipts(first.receipt, retry.receipt),
       };
     }
@@ -81,12 +86,16 @@ function combineReceipts(first: Receipt, second: Receipt): Receipt {
   };
 }
 
-export function parseJudgeJson(raw: string): {
+export function parseJudgeJson(
+  raw: string,
+  options: { requireCorrectness?: boolean } = {}
+): {
   faithfulness: number;
-  correctness: number;
+  correctness: number | null;
   completeness: number;
   rationale: string;
 } {
+  const requireCorrectness = options.requireCorrectness ?? true;
   const trimmed = raw.trim();
   const fenceMatch = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/);
   const jsonStr = fenceMatch ? fenceMatch[1]!.trim() : trimmed;
@@ -107,7 +116,9 @@ export function parseJudgeJson(raw: string): {
   }
   return {
     faithfulness: score(parsed.faithfulness, "faithfulness"),
-    correctness: score(parsed.correctness, "correctness"),
+    correctness: requireCorrectness
+      ? score(parsed.correctness, "correctness")
+      : null,
     completeness: score(parsed.completeness, "completeness"),
     rationale: parsed.rationale,
   };
@@ -119,7 +130,7 @@ export type JudgeInput = {
   judgeModel: string;
   context: string;
   question: string;
-  referenceAnswer: string;
+  referenceAnswer: string | null;
   candidate: string;
   costController?: CostController;
   operationPrefix?: string;

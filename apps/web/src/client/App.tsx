@@ -1,16 +1,25 @@
 import { Anchor, AppShell, Box, Group, Text, UnstyledButton } from "@mantine/core";
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Route, Routes, Link } from "react-router-dom";
 import { GITHUB_REPO_URL } from "./lib/render-links";
+import { api } from "./lib/api";
 import RenderCtas from "./components/RenderCtas";
 import ThemeToggle from "./components/ThemeToggle";
 import HowItWorksModal from "./components/workspace/HowItWorksModal";
 import WorkspacePage from "./pages/WorkspacePage";
 import NotFoundPage from "./pages/NotFoundPage";
 import { COPY } from "./lib/copy";
+import type { Catalog } from "./hooks/types";
 
 export default function App() {
   const [showHow, setShowHow] = useState(false);
+  const { data: catalog } = useQuery({
+    queryKey: ["models"],
+    queryFn: () => api<Catalog>("/api/models"),
+  });
+  const gateway = catalog?.gateway;
+  const gatewayLabel = gateway?.label ?? "";
 
   return (
     <AppShell header={{ height: 56 }} padding={0} className="pg-shell">
@@ -28,7 +37,7 @@ export default function App() {
 
           <Group gap="xs" wrap="nowrap" className="rag-utility-nav">
             <UnstyledButton className="pg-footer-link" onClick={() => setShowHow(true)}>
-              How it works
+              {COPY.app.howItWorks}
             </UnstyledButton>
             <ThemeToggle />
             <span className="rag-nav-divider" aria-hidden="true" />
@@ -46,7 +55,9 @@ export default function App() {
 
       <Box component="footer" className="pg-footer">
         <Group justify="space-between" wrap="wrap" className="pg-footer-inner">
-          <span className="pg-footer-status">Render Workflows + OpenRouter</span>
+          <span className="pg-footer-status">
+            {gatewayLabel ? COPY.app.footerStatus(gatewayLabel) : ""}
+          </span>
           <Group gap="lg">
             <Anchor
               className="pg-footer-link"
@@ -54,16 +65,18 @@ export default function App() {
               target="_blank"
               rel="noreferrer"
             >
-              GitHub
+              {COPY.app.githubLink}
             </Anchor>
-            <Anchor
-              className="pg-footer-link"
-              href="https://openrouter.ai/docs"
-              target="_blank"
-              rel="noreferrer"
-            >
-              OpenRouter docs
-            </Anchor>
+            {gateway?.docsUrl ? (
+              <Anchor
+                className="pg-footer-link"
+                href={gateway.docsUrl}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {COPY.app.gatewayDocs(gatewayLabel)}
+              </Anchor>
+            ) : null}
           </Group>
         </Group>
       </Box>

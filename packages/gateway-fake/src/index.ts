@@ -1,6 +1,11 @@
-import type { ModelGateway, ModelInfo } from "@ragtime/core";
+import type { GatewayIdentity, ModelCatalog, ModelGateway } from "@ragtime/core";
 
 const FAKE_DIMS = 64;
+
+const FAKE_GATEWAY_IDENTITY: GatewayIdentity = {
+  id: "fake",
+  label: "Fake gateway (offline)",
+};
 
 function hashEmbed(text: string): number[] {
   const vec = new Array(FAKE_DIMS).fill(0);
@@ -20,16 +25,33 @@ function tokenOverlap(query: string, doc: string): number {
   return hit / q.size;
 }
 
-const FAKE_CATALOG: { embedding: ModelInfo[]; rerank: ModelInfo[]; chat: ModelInfo[] } = {
+const FAKE_CATALOG: ModelCatalog = {
   embedding: [
-    { id: "fake/embed-small", name: "Fake Embed Small" },
-    { id: "fake/embed-large", name: "Fake Embed Large" },
+    {
+      id: "fake/embed-small",
+      name: "Fake Embed Small",
+      pricing: { prompt: "0.00000001" },
+    },
+    {
+      id: "fake/embed-large",
+      name: "Fake Embed Large",
+      pricing: { prompt: "0.00000005" },
+    },
   ],
   rerank: [{ id: "fake/rerank-v1", name: "Fake Rerank v1" }],
   chat: [
-    { id: "fake/chat-mini", name: "Fake Chat Mini" },
-    { id: "fake/chat-pro", name: "Fake Chat Pro" },
+    {
+      id: "fake/chat-mini",
+      name: "Fake Chat Mini",
+      pricing: { prompt: "0.0000001", completion: "0.0000002" },
+    },
+    {
+      id: "fake/chat-pro",
+      name: "Fake Chat Pro",
+      pricing: { prompt: "0.000001", completion: "0.000002" },
+    },
   ],
+  gateway: FAKE_GATEWAY_IDENTITY,
 };
 
 function fakeReceipt(latencyMs = 12): {
@@ -50,14 +72,15 @@ export function createFakeGateway(): ModelGateway {
       const questionMatch = user.match(/QUESTION:\s*([\s\S]*?)(?:\n\nREFERENCE:|$)/);
       const question = questionMatch?.[1]?.trim() ?? user;
 
-      if (req.jsonSchema || user.includes("REFERENCE:")) {
-        const text = JSON.stringify({
+      if (req.jsonSchema || user.includes("CANDIDATE:")) {
+        const hasReference = user.includes("REFERENCE:");
+        const payload: Record<string, unknown> = {
           faithfulness: context ? 8 : 7,
-          correctness: 7,
           completeness: 6,
           rationale: "Fake judge scored from context overlap.",
-        });
-        return { text, receipt: fakeReceipt(15) };
+        };
+        if (hasReference) payload.correctness = 7;
+        return { text: JSON.stringify(payload), receipt: fakeReceipt(15) };
       }
 
       if (!context) {

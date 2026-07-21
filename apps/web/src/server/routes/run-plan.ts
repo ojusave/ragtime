@@ -1,4 +1,20 @@
-import { MAX_EXPLICIT_QUESTIONS, type RunConfig } from "@ragtime/core";
+import { MAX_EXPLICIT_QUESTIONS, type RunConfig, type Setup } from "@ragtime/core";
+
+const setupKey = (setup: Setup): string =>
+  `${setup.embeddingModel}\u0000${setup.rerankModel ?? ""}\u0000${setup.genModel}`;
+
+/** Removes duplicate pipelines while preserving the order the caller supplied. */
+function dedupeSetups(setups: readonly Setup[]): Setup[] {
+  const seen = new Set<string>();
+  const out: Setup[] = [];
+  for (const setup of setups) {
+    const key = setupKey(setup);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(setup);
+  }
+  return out;
+}
 
 export type SnapshotRunConfig = Omit<RunConfig, "questionIds"> & {
   questionIds: string[];
@@ -16,13 +32,28 @@ export type RunPlanRejection = {
   error: string;
 };
 
+export type RunPlanOptions = {
+  /** Env-supplied judge model used when the request omits one. */
+  judgeModelFallback?: string;
+};
+
+function resolveJudgeModel(
+  config: RunConfig,
+  options?: RunPlanOptions
+): string | undefined {
+  const candidate = config.judgeModel ?? options?.judgeModelFallback;
+  const trimmed = candidate?.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 /**
  * Converts a parsed request into the immutable question snapshot persisted with a run.
  * `authorizedQuestionIds` must already be restricted to the requested corpus and caller.
  */
 export function createRunPlan(
   config: RunConfig,
-  authorizedQuestionIds: readonly string[]
+  authorizedQuestionIds: readonly string[],
+  options?: RunPlanOptions
 ): RunPlan {
   const authorized = [...new Set(authorizedQuestionIds)];
   const authorizedSet = new Set(authorized);
@@ -35,13 +66,39 @@ export function createRunPlan(
     config.questionIds === "all"
       ? []
       : requested.filter((id) => !authorizedSet.has(id));
-  const comboCount =
-    config.embeddingModels.length *
-    config.rerankModels.length *
-    config.genModels.length;
+  const judgeModel = resolveJudgeModel(config, options);
+
+  // Explicit setups win over the cross-product. Normalize the model arrays to the
+  // union of the setups so the embed phase (which reads embeddingModels) stays correct.
+  const setups =
+    config.setups && config.setups.length > 0
+      ? dedupeSetups(config.setups)
+      : undefined;
+  const normalized = setups
+    ? {
+        embeddingModels: [...new Set(setups.map((s) => s.embeddingModel))],
+        rerankModels: [...new Set(setups.map((s) => s.rerankModel))],
+        genModels: [...new Set(setups.map((s) => s.genModel))],
+      }
+    : {
+        embeddingModels: config.embeddingModels,
+        rerankModels: config.rerankModels,
+        genModels: config.genModels,
+      };
+  const comboCount = setups
+    ? setups.length
+    : normalized.embeddingModels.length *
+      normalized.rerankModels.length *
+      normalized.genModels.length;
 
   return {
-    config: { ...config, questionIds: [...questionIds] },
+    config: {
+      ...config,
+      ...normalized,
+      setups,
+      judgeModel,
+      questionIds: [...questionIds],
+    },
     comboCount,
     trialCount: comboCount * questionIds.length,
     unavailableQuestionIds,
@@ -52,6 +109,13 @@ export function getRunPlanRejection(
   plan: RunPlan,
   maxTrials: number
 ): RunPlanRejection | null {
+  if (!plan.config.judgeModel) {
+    return {
+      statusCode: 400,
+      error:
+        "No judge model configured. Set JUDGE_MODEL or include judgeModel in the run request.",
+    };
+  }
   if (plan.unavailableQuestionIds.length > 0) {
     return {
       statusCode: 403,
@@ -73,7 +137,7 @@ export function getRunPlanRejection(
   if (plan.trialCount > maxTrials) {
     return {
       statusCode: 400,
-      error: `This matrix would run ${plan.trialCount} trials (max ${maxTrials}). Reduce embedding, rerank, or generation models, or pick fewer questions.`,
+      error: `This run would produce ${plan.trialCount} answers (max ${maxTrials}). Remove a setup or pick fewer questions.`,
     };
   }
   return null;

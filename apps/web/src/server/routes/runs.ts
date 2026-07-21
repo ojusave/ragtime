@@ -65,7 +65,8 @@ export function registerRunRoutes(app: FastifyInstance): void {
     const maxTrials = envNumber("MAX_TRIALS_PER_RUN", 324);
     const plan = createRunPlan(
       body,
-      authorizedQuestions.map((question) => question.id)
+      authorizedQuestions.map((question) => question.id),
+      { judgeModelFallback: config.judgeModel }
     );
 
     const rejection = getRunPlanRejection(plan, maxTrials);
@@ -87,25 +88,34 @@ export function registerRunRoutes(app: FastifyInstance): void {
         .returning();
       if (!createdRun) throw new Error("Failed to create run.");
 
-      const comboRows = [];
-      for (const emb of plan.config.embeddingModels) {
-        for (const rer of plan.config.rerankModels) {
-          for (const gen of plan.config.genModels) {
-            comboRows.push({
-              runId: createdRun.id,
-              embeddingModel: emb,
-              rerankModel: rer,
-              genModel: gen,
-              retrieveK: plan.config.retrieveK,
-              finalK: plan.config.finalK,
-              relevanceThreshold:
-                plan.config.relevanceThreshold != null
-                  ? String(plan.config.relevanceThreshold)
-                  : null,
-            });
-          }
-        }
-      }
+      const relevanceThreshold =
+        plan.config.relevanceThreshold != null
+          ? String(plan.config.relevanceThreshold)
+          : null;
+      const comboSeeds = plan.config.setups
+        ? plan.config.setups.map((setup) => ({
+            embeddingModel: setup.embeddingModel,
+            rerankModel: setup.rerankModel,
+            genModel: setup.genModel,
+          }))
+        : plan.config.embeddingModels.flatMap((embeddingModel) =>
+            plan.config.rerankModels.flatMap((rerankModel) =>
+              plan.config.genModels.map((genModel) => ({
+                embeddingModel,
+                rerankModel,
+                genModel,
+              }))
+            )
+          );
+      const comboRows = comboSeeds.map((seed) => ({
+        runId: createdRun.id,
+        embeddingModel: seed.embeddingModel,
+        rerankModel: seed.rerankModel,
+        genModel: seed.genModel,
+        retrieveK: plan.config.retrieveK,
+        finalK: plan.config.finalK,
+        relevanceThreshold,
+      }));
       await tx.insert(combos).values(comboRows);
       return createdRun;
     });
@@ -155,6 +165,7 @@ export function registerRunRoutes(app: FastifyInstance): void {
               status: trials.status,
               overallScore: trials.overallScore,
               attempts: trials.attempts,
+              answer: trials.answer,
             })
             .from(trials)
             .where(
@@ -169,10 +180,19 @@ export function registerRunRoutes(app: FastifyInstance): void {
     const questionRows =
       questionIds.length > 0
         ? await db
-            .select({ id: questions.id, text: questions.text })
+            .select({
+              id: questions.id,
+              text: questions.text,
+              referenceAnswer: questions.referenceAnswer,
+            })
             .from(questions)
             .where(inArray(questions.id, questionIds))
         : [];
+
+    // A question with no reference answer is scored "judge-only": no correctness.
+    const judgeOnlyQuestionIds = new Set(
+      questionRows.filter((q) => q.referenceAnswer == null).map((q) => q.id)
+    );
 
     const phases = await getPhaseCounters(db, req.params.id, run.corpusId);
 
@@ -184,8 +204,11 @@ export function registerRunRoutes(app: FastifyInstance): void {
           ...c,
           label: comboLabel(c.embeddingModel, c.rerankModel, c.genModel),
         })),
-        grid,
-        questions: questionRows,
+        grid: grid.map((cell) => ({
+          ...cell,
+          judgeOnly: judgeOnlyQuestionIds.has(cell.questionId),
+        })),
+        questions: questionRows.map((q) => ({ id: q.id, text: q.text })),
       },
     };
   });

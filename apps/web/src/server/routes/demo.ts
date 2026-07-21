@@ -66,7 +66,7 @@ export function registerDemoRoutes(app: FastifyInstance): void {
     return { data: rows };
   });
 
-  app.post<{ Body: { text: string; referenceAnswer?: string } }>(
+  app.post<{ Body: { text: string; referenceAnswer?: string | null } }>(
     "/api/questions",
     async (req, reply) => {
       const { sessionId } = asSessionRequest(req);
@@ -80,13 +80,15 @@ export function registerDemoRoutes(app: FastifyInstance): void {
         return reply.status(404).send({ error: "Demo corpus not found. Load sample data first." });
       }
 
+      // No reference answer means the judge will not score correctness.
+      const referenceAnswer = req.body.referenceAnswer?.trim() || null;
       const [row] = await db
         .insert(questions)
         .values({
           corpusId: corpus.id,
           sessionId,
           text,
-          referenceAnswer: req.body.referenceAnswer?.trim() || "No reference answer provided.",
+          referenceAnswer,
           origin: "manual",
         })
         .returning();

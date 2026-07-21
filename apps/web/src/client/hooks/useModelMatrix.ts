@@ -1,13 +1,18 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { api } from "../lib/api";
-import { formatMatrixSummary } from "../lib/copy";
-import type { Catalog } from "./types";
-
-const SUGGESTED_EMB = ["baai/bge-large-en-v1.5", "google/gemini-embedding-001"];
-const SUGGESTED_GEN = ["mistralai/mistral-small-24b-instruct-2501", "qwen/qwen3.5-9b"];
+import { formatSetupSummary } from "../lib/copy";
+import {
+  blankSetup,
+  deriveStarterSetups,
+  newSetupId,
+} from "../lib/model-preset";
+import type { Catalog, Setup } from "./types";
 
 export function useModelMatrix(questionCount: number) {
+  // Explicit setups are the source of truth for a run.
+  const [setups, setSetups] = useState<Setup[]>([]);
+  // Matrix-mode selectors only feed the "expand into setups" helper.
   const [embModels, setEmbModels] = useState<string[]>([]);
   const [rerModels, setRerModels] = useState<string[]>([]);
   const [genModels, setGenModels] = useState<string[]>([]);
@@ -29,37 +34,80 @@ export function useModelMatrix(questionCount: number) {
 
   const matrix = useMemo(() => {
     const maxTrials = appConfig?.maxTrialsPerRun ?? 324;
-    const e = embModels.length || 0;
-    const r = (noRerank ? 1 : 0) + rerModels.length;
-    const g = genModels.length || 0;
-    return formatMatrixSummary({
-      embedCount: e,
-      rerankCount: r,
-      genCount: g,
+    return formatSetupSummary({
+      setupCount: setups.length,
       questionCount,
       budgetUsd: Number(budget) || 0,
       maxTrials,
     });
-  }, [embModels, rerModels, genModels, noRerank, questionCount, budget, appConfig]);
+  }, [setups, questionCount, budget, appConfig]);
+
+  function addSetup() {
+    setSetups((prev) => [...prev, blankSetup(catalog)]);
+  }
+
+  function updateSetup(id: string, patch: Partial<Omit<Setup, "id">>) {
+    setSetups((prev) =>
+      prev.map((setup) => (setup.id === id ? { ...setup, ...patch } : setup))
+    );
+  }
+
+  function removeSetup(id: string) {
+    setSetups((prev) => prev.filter((setup) => setup.id !== id));
+  }
 
   function applyStarterPreset() {
-    const emb = catalog?.embedding.map((m) => m.id) ?? [];
-    const gen = catalog?.chat.map((m) => m.id) ?? [];
-    setEmbModels(SUGGESTED_EMB.filter((mid) => emb.includes(mid)));
-    setGenModels(SUGGESTED_GEN.filter((mid) => gen.includes(mid)));
-    setRerModels([]);
-    setNoRerank(true);
+    const starter = deriveStarterSetups(catalog);
+    if (starter.length === 0) return;
+    setSetups(starter);
     setPresetApplied(true);
   }
 
+  /** Cross every selected model and append the results as explicit setups. */
+  function expandMatrixToSetups() {
+    const rerankChoices = [
+      ...(noRerank ? [null] : []),
+      ...rerModels,
+    ];
+    if (embModels.length === 0 || genModels.length === 0 || rerankChoices.length === 0) {
+      return;
+    }
+    const expanded: Setup[] = [];
+    for (const embeddingModel of embModels) {
+      for (const rerankModel of rerankChoices) {
+        for (const genModel of genModels) {
+          expanded.push({
+            id: newSetupId(),
+            embeddingModel,
+            rerankModel,
+            genModel,
+          });
+        }
+      }
+    }
+    setSetups((prev) => {
+      const seen = new Set(
+        prev.map((s) => `${s.embeddingModel}|${s.rerankModel ?? ""}|${s.genModel}`)
+      );
+      const additions = expanded.filter(
+        (s) => !seen.has(`${s.embeddingModel}|${s.rerankModel ?? ""}|${s.genModel}`)
+      );
+      return [...prev, ...additions];
+    });
+  }
+
+  const setupsValid = setups.every(
+    (setup) => setup.embeddingModel && setup.genModel
+  );
   const canRun =
-    questionCount > 0 &&
-    embModels.length > 0 &&
-    genModels.length > 0 &&
-    !matrix.overLimit;
+    questionCount > 0 && setups.length > 0 && setupsValid && !matrix.overLimit;
 
   return {
     catalog,
+    setups,
+    addSetup,
+    updateSetup,
+    removeSetup,
     embModels,
     setEmbModels,
     rerModels,
@@ -68,6 +116,7 @@ export function useModelMatrix(questionCount: number) {
     setGenModels,
     noRerank,
     setNoRerank,
+    expandMatrixToSetups,
     retrieveK,
     setRetrieveK,
     finalK,

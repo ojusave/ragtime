@@ -18,7 +18,6 @@ export function envNumber(key: string, fallback: number): number {
 export function getAppConfig() {
   return {
     appUrl: envString("APP_URL", "http://localhost:5173"),
-    openRouterAppTitle: envString("OPENROUTER_APP_TITLE", "RAGtime"),
     judgeModel: process.env.JUDGE_MODEL ?? "",
     maxRunBudgetUsd: envNumber("MAX_RUN_BUDGET_USD", 5),
     /** Adapter-enforced maximum charge reserved for any single provider call. */

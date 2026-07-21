@@ -1,5 +1,5 @@
-import { Alert, Button, Center, Loader, Stack, Tabs, Text } from "@mantine/core";
-import { useMediaQuery } from "@mantine/hooks";
+import { Alert, Button, Center, Group, Loader, Modal, Stack, Tabs, Text } from "@mantine/core";
+import { useDisclosure, useMediaQuery } from "@mantine/hooks";
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../lib/api";
 import { COPY } from "../lib/copy";
@@ -32,6 +32,8 @@ export default function WorkspacePage() {
   const [prompt, setPrompt] = useState("");
   const [selectedSampleId, setSelectedSampleId] = useState<string | null>(null);
   const [mobileTab, setMobileTab] = useState<string | null>("inputs");
+  const [escalateOpen, { open: openEscalate, close: closeEscalate }] =
+    useDisclosure(false);
 
   useEffect(() => {
     if (workspace.runId) setMobileTab("arena");
@@ -45,11 +47,11 @@ export default function WorkspacePage() {
   }, [samples, selectedSampleId]);
 
   useEffect(() => {
-    if (matrix.catalog && !matrix.presetApplied && matrix.embModels.length === 0) {
+    if (matrix.catalog && !matrix.presetApplied && matrix.setups.length === 0) {
       matrix.applyStarterPreset();
       matrix.setPresetApplied(true);
     }
-  }, [matrix.catalog, matrix.presetApplied, matrix.embModels.length, matrix]);
+  }, [matrix.catalog, matrix.presetApplied, matrix.setups.length, matrix]);
 
   const selectedSample = useMemo(
     () => samples.find((s) => s.id === selectedSampleId) ?? null,
@@ -74,7 +76,8 @@ export default function WorkspacePage() {
         method: "POST",
         body: JSON.stringify({
           text: prompt.trim(),
-          referenceAnswer: selectedSample?.referenceAnswer ?? "No reference answer provided.",
+          // Custom questions have no trusted reference: correctness stays unscored.
+          referenceAnswer: selectedSample?.referenceAnswer ?? null,
         }),
       });
       questionId = created.id;
@@ -82,14 +85,33 @@ export default function WorkspacePage() {
 
     if (!questionId) return;
 
-    const rerankModels = [...(matrix.noRerank ? [null] : []), ...matrix.rerModels];
     workspace.start.mutate({
       corpusId: demo.corpusId,
       questionId,
       name: `Comparison ${new Date().toLocaleTimeString()}`,
-      embeddingModels: matrix.embModels,
-      rerankModels,
-      genModels: matrix.genModels,
+      setups: matrix.setups.map((setup) => ({
+        embeddingModel: setup.embeddingModel,
+        rerankModel: setup.rerankModel,
+        genModel: setup.genModel,
+      })),
+      retrieveK: matrix.retrieveK,
+      finalK: matrix.finalK,
+      budgetUsd: Number(matrix.budget) || 5,
+    });
+  }
+
+  function confirmEscalate() {
+    if (!demo?.corpusId) return;
+    closeEscalate();
+    workspace.start.mutate({
+      corpusId: demo.corpusId,
+      name: `Full comparison ${new Date().toLocaleTimeString()}`,
+      setups: matrix.setups.map((setup) => ({
+        embeddingModel: setup.embeddingModel,
+        rerankModel: setup.rerankModel,
+        genModel: setup.genModel,
+      })),
+      allQuestions: true,
       retrieveK: matrix.retrieveK,
       finalK: matrix.finalK,
       budgetUsd: Number(matrix.budget) || 5,
@@ -157,7 +179,33 @@ export default function WorkspacePage() {
       onRunAgain={workspace.reset}
       onSelectTrial={workspace.setSelectedTrialId}
       selectedTrialId={workspace.selectedTrialId}
+      totalQuestionCount={demo.questionCount}
+      onEscalate={openEscalate}
+      escalating={workspace.start.isPending}
     />
+  );
+
+  const escalateTrialCount = matrix.setups.length * (demo.questionCount ?? 0);
+  const escalateBudget = (Number(matrix.budget) || 5).toFixed(2);
+  const escalateModal = (
+    <Modal
+      opened={escalateOpen}
+      onClose={closeEscalate}
+      title={COPY.app.escalateConfirmTitle}
+      centered
+    >
+      <Stack gap="md">
+        <Text size="sm">
+          {COPY.app.escalateConfirmBody(escalateTrialCount, escalateBudget)}
+        </Text>
+        <Group justify="flex-end" gap="sm">
+          <Button variant="default" onClick={closeEscalate}>
+            {COPY.app.escalateCancel}
+          </Button>
+          <Button onClick={confirmEscalate}>{COPY.app.escalateConfirm}</Button>
+        </Group>
+      </Stack>
+    </Modal>
   );
 
   const inspector = (
@@ -167,6 +215,7 @@ export default function WorkspacePage() {
   if (mobile) {
     return (
       <div className="workspace-page">
+        {escalateModal}
         <Tabs value={mobileTab} onChange={setMobileTab} defaultValue="inputs" className="mobile-panes">
           <Tabs.List grow>
             <Tabs.Tab value="inputs">{COPY.app.zones.inputs}</Tabs.Tab>
@@ -189,6 +238,7 @@ export default function WorkspacePage() {
 
   return (
     <div className="workspace-page">
+      {escalateModal}
       <ResizableWorkspace controls={controls} canvas={canvas} inspector={inspector} />
     </div>
   );

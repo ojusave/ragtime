@@ -835,3 +835,88 @@
     display: none;
   }
 }
+
+.answer-cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 0.75rem;
+}
+
+.answer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  padding: 0.75rem;
+  border: 1px solid var(--rag-border);
+  border-radius: var(--mantine-radius-sm);
+  background: var(--rag-subtle);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 120ms ease, background 120ms ease, box-shadow 120ms ease;
+}
+
+.answer-card:hover:not(:disabled) {
+  border-color: var(--pg-accent-border);
+  background: var(--rag-surface);
+}
+
+.answer-card:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--pg-accent) 35%, transparent);
+  outline-offset: 2px;
+}
+
+.answer-card--selected {
+  border-color: var(--pg-accent);
+  background: var(--pg-accent-soft);
+  box-shadow: 0 0 0 1px var(--pg-accent-border);
+}
+
+.answer-card:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.answer-card-body {
+  flex: 1 1 auto;
+  min-height: 3.5rem;
+}
+
+.answer-card-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  white-space: pre-wrap;
+  line-height: 1.5;
+}
+
+.answer-card-footer {
+  border-top: 1px solid var(--rag-border);
+  padding-top: 0.5rem;
+}
+
+.answer-card-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  color: var(--score-current, var(--score-neutral));
+}
+
+.answer-card-score-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--rag-muted);
+}
+
+.answer-card-score-number {
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.answer-card-score-scale {
+  font-size: 0.68rem;
+  color: var(--rag-muted);
+}

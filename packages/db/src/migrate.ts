@@ -66,7 +66,7 @@ export async function migrate(): Promise<void> {
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       corpus_id uuid NOT NULL REFERENCES corpora(id) ON DELETE CASCADE,
       text text NOT NULL,
-      reference_answer text NOT NULL,
+      reference_answer text,
       origin text NOT NULL DEFAULT 'manual'
         CHECK (origin IN ('manual', 'csv', 'generated')),
       created_at timestamptz NOT NULL DEFAULT now()
@@ -216,6 +216,15 @@ export async function migrate(): Promise<void> {
 
   await db.execute(sql`
     ALTER TABLE questions ADD COLUMN IF NOT EXISTS session_id text
+  `);
+  // Questions may have no reference answer; correctness is then not scored.
+  await db.execute(sql`
+    ALTER TABLE questions ALTER COLUMN reference_answer DROP NOT NULL
+  `);
+  await db.execute(sql`
+    UPDATE questions
+    SET reference_answer = NULL
+    WHERE reference_answer = 'No reference answer provided.'
   `);
   await db.execute(sql`
     ALTER TABLE runs ADD COLUMN IF NOT EXISTS session_id text

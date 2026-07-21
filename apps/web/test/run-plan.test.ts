@@ -19,6 +19,7 @@ function parseConfig(overrides: Record<string, unknown> = {}) {
     rerankModels: [null],
     genModels: ["gen/a"],
     questionIds: [questionA],
+    judgeModel: "judge/model",
     ...overrides,
   });
 }
@@ -142,6 +143,68 @@ test("rejects an empty all-question snapshot before run creation", () => {
     statusCode: 400,
     error: "No questions are available for this run.",
   });
+});
+
+test("requires a judge model from the request or the env fallback", () => {
+  const withoutJudge = runConfigSchema.parse({
+    corpusId,
+    name: "test run",
+    embeddingModels: ["embed/a"],
+    rerankModels: [null],
+    genModels: ["gen/a"],
+    questionIds: [questionA],
+  });
+
+  const noJudge = createRunPlan(withoutJudge, [questionA]);
+  assert.equal(noJudge.config.judgeModel, undefined);
+  assert.deepEqual(getRunPlanRejection(noJudge, 324), {
+    statusCode: 400,
+    error:
+      "No judge model configured. Set JUDGE_MODEL or include judgeModel in the run request.",
+  });
+
+  const fromFallback = createRunPlan(withoutJudge, [questionA], {
+    judgeModelFallback: "env/judge",
+  });
+  assert.equal(fromFallback.config.judgeModel, "env/judge");
+  assert.equal(getRunPlanRejection(fromFallback, 324), null);
+
+  const fromRequest = createRunPlan(
+    parseConfig({ judgeModel: "request/judge" }),
+    [questionA],
+    { judgeModelFallback: "env/judge" }
+  );
+  assert.equal(fromRequest.config.judgeModel, "request/judge");
+
+  const blankFallback = createRunPlan(withoutJudge, [questionA], {
+    judgeModelFallback: "   ",
+  });
+  assert.equal(blankFallback.config.judgeModel, undefined);
+  assert.equal(getRunPlanRejection(blankFallback, 324)?.statusCode, 400);
+});
+
+test("explicit setups drive combos and normalize the model arrays", () => {
+  const config = parseConfig({
+    embeddingModels: ["embed/a", "embed/b", "embed/unused"],
+    rerankModels: [null, "rerank/a"],
+    genModels: ["gen/a", "gen/b", "gen/unused"],
+    setups: [
+      { embeddingModel: "embed/a", rerankModel: null, genModel: "gen/a" },
+      { embeddingModel: "embed/b", rerankModel: "rerank/a", genModel: "gen/b" },
+      // Duplicate of the first setup: collapsed.
+      { embeddingModel: "embed/a", rerankModel: null, genModel: "gen/a" },
+    ],
+    questionIds: [questionA, questionB],
+  });
+
+  const plan = createRunPlan(config, [questionA, questionB]);
+  assert.equal(plan.comboCount, 2);
+  assert.equal(plan.trialCount, 4);
+  assert.equal(plan.config.setups?.length, 2);
+  // Model arrays collapse to the union actually referenced by the setups.
+  assert.deepEqual(plan.config.embeddingModels, ["embed/a", "embed/b"]);
+  assert.deepEqual(plan.config.rerankModels, [null, "rerank/a"]);
+  assert.deepEqual(plan.config.genModels, ["gen/a", "gen/b"]);
 });
 
 test("caps an all-question snapshot even when the trial cap is raised", () => {

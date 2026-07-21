@@ -47,7 +47,7 @@ export default function ResizableWorkspace({
         </main>
       </Panel>
 
-      <Separator className="resize-handle" aria-label="Resize run and trial detail panes">
+      <Separator className="resize-handle" aria-label={COPY.app.resizeAria}>
         <span />
       </Separator>
 
