@@ -73,7 +73,11 @@ export default function ResultsPanel({
               <Table.Thead>
                 <Table.Tr>
                   <Table.Th aria-label="Rank">#</Table.Th>
-                  <Table.Th>Eval score</Table.Th>
+                  <Table.Th>
+                    <Tooltip label={COPY.app.judgeScoreTooltip} multiline w={240} withArrow>
+                      <span style={{ cursor: "help" }}>{COPY.app.judgeScore}</span>
+                    </Tooltip>
+                  </Table.Th>
                   <Table.Th>Search</Table.Th>
                   <Table.Th>Rerank</Table.Th>
                   <Table.Th>Answer</Table.Th>
@@ -135,7 +139,7 @@ export default function ResultsPanel({
               data={scatterSeries}
               dataKey={{ x: "cost", y: "quality" }}
               xAxisLabel="Cost (USD)"
-              yAxisLabel="Eval score (0–100)"
+              yAxisLabel={COPY.app.judgeScoreAxis}
               withTooltip
             />
           </Tabs.Panel>

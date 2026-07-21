@@ -1,9 +1,16 @@
 /** User-facing copy (single source of truth). */
 
 export const FLOW_STEPS = [
-  { label: "Choose a question", description: "SciFact sample or your own text" },
-  { label: "Select models", description: "Embedding, rerank, and generation models" },
-  { label: "Run the matrix", description: "Each combination runs as a Render Workflow task" },
+  { label: "Choose a question", description: "Pick a sample or write your own" },
+  {
+    label: "Compose setups",
+    description:
+      "Each setup combines an embedding, an optional rerank, and a generation model",
+  },
+  {
+    label: "Run and compare",
+    description: "Setups run in parallel as Render Workflow tasks",
+  },
 ] as const;
 
 export const RUN_STATUS_LABEL: Record<string, string> = {
@@ -52,7 +59,7 @@ export function formatMatrixSummary(args: {
   const setups = args.embedCount * args.rerankCount * args.genCount;
   const trialCount = setups * args.questionCount;
   const overLimit = trialCount > args.maxTrials;
-  const line = `${setups} setup${setups === 1 ? "" : "s"} × ${args.questionCount} question = ${trialCount} trial${trialCount === 1 ? "" : "s"}. Budget $${args.budgetUsd.toFixed(2)}.`;
+  const line = `${setups} setup${setups === 1 ? "" : "s"} × ${args.questionCount} question${args.questionCount === 1 ? "" : "s"} = ${trialCount} answer${trialCount === 1 ? "" : "s"}. Budget $${args.budgetUsd.toFixed(2)}.`;
   return { line, trialCount, overLimit };
 }
 
@@ -106,130 +113,78 @@ export function friendlyError(raw: string, meta?: FriendlyErrorMeta): string {
 
 export const COPY = {
   app: {
-    subtitle: "RAG model evaluation",
-    zones: { inputs: "Inputs", run: "Run", detail: "Trial detail" },
-    welcomeTitle: "Compare RAG models on SciFact",
+    subtitle: "Compare AI model combinations",
+    zones: { inputs: "Inputs", run: "Run", detail: "Setup detail" },
+    welcomeTitle: "Same question. Different models. Compare the answers.",
     welcomeBody:
-      "Run one question through multiple embedding, rerank, and generation models. Each model setup is a separate trial.",
+      "A RAG pipeline uses three models: one finds relevant passages, one reorders them, and one writes the answer. Pick a few combinations and see which ones get it right.",
     questionSection: "Question",
-    modelsSection: "Models",
+    modelsSection: "Setups",
     sampleQuestions: "Sample questions",
     promptPlaceholder: "What does the evidence say about…?",
     yourQuestion: "Question text",
     embedLabel: "Embedding",
-    rerankLabel: "Rerank",
+    embedHint: "Finds candidate passages",
+    rerankLabel: "Rerank (optional)",
+    rerankHint: "Reorders passages before answering",
     noRerankLabel: "Include runs without rerank",
     genLabel: "Generation",
+    genHint: "Writes the answer",
+    noneOption: "None",
     suggested: "Suggested",
-    starterPreset: "Suggested models",
+    starterPreset: "Suggested setups",
     advanced: "Retrieval settings",
     retrieveLabel: "Retrieve K",
     finalKLabel: "Final K",
     budgetLabel: "Budget (USD)",
     runButton: "Run",
     runningButton: "Running…",
-    loadDemo: "Load SciFact corpus",
-    loadingDemo: "Loading SciFact corpus…",
+    loadDemo: "Load demo library (100 medical abstracts)",
+    loadingDemo: "Loading demo library…",
+    demoLoadFailed: "Demo library failed to load",
     canvasIdleTitle: "No run in progress",
-    canvasIdleBody: "Select models in Inputs and click Run.",
-    inspectorEmpty: "Select a trial row to view retrieved passages and the generated answer.",
+    canvasIdleBody:
+      "Pick your setups on the left and press Run. Answers appear here side by side.",
+    inspectorEmpty:
+      "Select an answer to view its retrieved passages and the generated answer.",
+    inspectorScoreAria: "Selected setup score",
+    resizeAria: "Resize run and detail panes",
     runAgain: "New run",
     cancel: "Cancel run",
     progress: (done: number, total: number) => `${done} of ${total} complete`,
     spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
     elapsed: (sec: number) => `${sec.toFixed(1)}s`,
     bestScore: "Best score",
-    trials: "Trials",
+    setups: "Setups",
+    setupCount: (n: number) => `${n} setup${n === 1 ? "" : "s"}`,
+    setupsScored: (scored: number, total: number) =>
+      `${scored} of ${total} setup${total === 1 ? "" : "s"} scored`,
+    awaitingScores: "Waiting for scored setups",
+    arenaHint: "Select a setup to inspect its evidence.",
+    judgeScore: "Judge score",
+    judgeScoreTooltip:
+      "A judge model rates faithfulness, correctness, and completeness from the retrieved passages.",
+    judgeScoreAxis: "Judge score (0-100)",
     eventLog: "Event log",
     howItWorks: "How it works",
     githubLink: "GitHub",
     footerStatus: (gatewayLabel: string) => `Render Workflows + ${gatewayLabel}`,
     gatewayDocs: (gatewayLabel: string) => `${gatewayLabel} docs`,
   },
-  /** @deprecated Use COPY.app — kept for gradual migration */
-  playground: {
-    badge: "Playground",
-    kicker: "",
-    zones: { setup: "Inputs", arena: "Run", peek: "Trial detail" },
-    welcomeTitle: "Compare RAG models on SciFact",
-    welcomeBody:
-      "Run one question through multiple embedding, rerank, and generation models. Each model setup is a separate trial.",
-    questionLab: "Question",
-    modelMixer: "Models",
-    sampleChips: "Sample questions",
-    promptPlaceholder: "What does the evidence say about…?",
-    yourQuestion: "Question text",
-    embedLabel: "Embedding",
-    rerankLabel: "Rerank",
-    noRerankLabel: "Include runs without rerank",
-    genLabel: "Generation",
-    quickPicks: "Suggested",
-    starterPreset: "Suggested models",
-    advanced: "Retrieval settings",
-    retrieveLabel: "Retrieve K",
-    finalKLabel: "Final K",
-    budgetLabel: "Budget (USD)",
-    launchButton: "Run",
-    launchRunning: "Running…",
-    loadDemo: "Load SciFact corpus",
-    loadingDemo: "Loading SciFact corpus…",
-    canvasIdleTitle: "No run in progress",
-    canvasIdleBody: "Select models in Inputs and click Run.",
-    inspectorEmpty: "Select a trial row to view retrieved passages and the generated answer.",
-    runAgain: "New run",
-    cancel: "Cancel run",
-    progress: (done: number, total: number) => `${done} of ${total} complete`,
-    spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
-    elapsed: (sec: number) => `${sec.toFixed(1)}s`,
-    bestScore: "Best score",
-    combos: "Trials",
-  },
-  workspace: {
-    title: "Compare RAG models on SciFact",
-    subtitle: "One question, multiple model setups.",
-    promptLabel: "Question",
-    promptPlaceholder: "What does the evidence say about…?",
-    sampleLabel: "Sample questions",
-    customPrompt: "Question text",
-    modelsHeading: "Models",
-    embedLabel: "Embedding",
-    rerankLabel: "Rerank",
-    noRerankLabel: "Include runs without rerank",
-    genLabel: "Generation",
-    starterPreset: "Suggested models",
-    advanced: "Retrieval settings",
-    retrieveLabel: "Retrieve K",
-    finalKLabel: "Final K",
-    budgetLabel: "Budget (USD)",
-    runButton: "Run",
-    runningButton: "Running…",
-    loadDemo: "Load SciFact corpus",
-    loadingDemo: "Loading SciFact corpus…",
-    demoMissing: "SciFact corpus not loaded.",
-    canvasIdle: "Select models and click Run.",
-    inspectorEmpty: "Select a trial row to view passages and answers.",
-    runAgain: "New run",
-    cancel: "Cancel run",
-    progress: (done: number, total: number) => `${done} of ${total} complete`,
-    spend: (spent: string, budget: string) => `$${spent} / $${budget}`,
-    elapsed: (sec: number) => `${sec.toFixed(1)}s`,
-    bestScore: "Best score",
-    combos: "Trials",
-  },
   howItWorks: {
     title: "How a comparison runs",
     steps: [
       {
-        title: "Question",
-        body: "The same question is sent to every selected model setup.",
+        title: "One question",
+        body: "Your question goes to every setup.",
       },
       {
-        title: "Model matrix",
-        body: "You pick embedding, rerank, and generation models. Each combination is one trial.",
+        title: "One setup, three models",
+        body: "Each setup is one combination of the three models.",
       },
       {
         title: "Render Workflows",
-        body: "Trials run in parallel. Open a row to inspect retrieval, generation, and judge scores.",
+        body: "Setups run in parallel as Render Workflow tasks. Click any answer to see the passages and scores behind it.",
       },
     ],
     footnote: "Runs are scoped to this browser session.",
@@ -269,7 +224,7 @@ export const COPY = {
   notify: {
     comparisonStarted: "Run started",
     comparisonStopped: "Run canceled",
-    demoLoaded: "SciFact corpus loaded",
+    demoLoaded: "Demo library loaded",
   },
   common: {
     loading: "Loading…",

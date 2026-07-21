@@ -116,6 +116,7 @@ export default function ControlsPanel({
       <MultiSelect
         {...selectFieldProps}
         label={COPY.app.embedLabel}
+        description={COPY.app.embedHint}
         searchable
         data={catalog?.embedding.map((m) => ({ value: m.id, label: m.name })) ?? []}
         renderOption={({ option }) => (
@@ -138,6 +139,7 @@ export default function ControlsPanel({
       <MultiSelect
         {...selectFieldProps}
         label={COPY.app.rerankLabel}
+        description={COPY.app.rerankHint}
         searchable
         data={catalog?.rerank.map((m) => ({ value: m.id, label: m.name })) ?? []}
         renderOption={({ option }) => (
@@ -153,6 +155,7 @@ export default function ControlsPanel({
       <MultiSelect
         {...selectFieldProps}
         label={COPY.app.genLabel}
+        description={COPY.app.genHint}
         searchable
         data={catalog?.chat.map((m) => ({ value: m.id, label: m.name })) ?? []}
         renderOption={({ option }) => (

@@ -40,7 +40,7 @@ export default function DemoSetupPanel({ loading, failed, errorMessage, onRetry 
           </Stack>
 
           {failed ? (
-            <Alert color="red" title="Corpus load failed">
+            <Alert color="red" title={COPY.app.demoLoadFailed}>
               <Stack gap="sm">
                 <Text size="sm">{errorMessage ?? COPY.common.loadFailed}</Text>
                 <Button size="sm" onClick={onRetry}>

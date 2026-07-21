@@ -54,13 +54,13 @@ export default function ComboArenaList({ combos, grid, selectedTrialId, onSelect
     <Stack gap="sm" className="combo-arena-list pg-arena-card">
       <Group justify="space-between" align="center">
         <Stack gap={0}>
-          <Text className="pg-section-title">{COPY.app.trials}</Text>
+          <Text className="pg-section-title">{COPY.app.setups}</Text>
           <Text size="xs" c="dimmed">
-            Select a row to inspect its evidence.
+            {COPY.app.arenaHint}
           </Text>
         </Stack>
         <Text size="xs" c="dimmed">
-          {combos.length} setup{combos.length === 1 ? "" : "s"}
+          {COPY.app.setupCount(combos.length)}
         </Text>
       </Group>
 
@@ -85,7 +85,7 @@ export default function ComboArenaList({ combos, grid, selectedTrialId, onSelect
               className={`arena-combo-row${selected ? " arena-combo-row--selected" : ""}`}
               disabled={!cell}
               onClick={() => cell && onSelect(cell.trialId)}
-              aria-label={`${models.search}, ${models.rerank ?? "no rerank"}, ${models.answer}. ${statusLabel}. Eval score ${scoreLabel}.`}
+              aria-label={`${models.search}, ${models.rerank ?? "no rerank"}, ${models.answer}. ${statusLabel}. ${COPY.app.judgeScore} ${scoreLabel}.`}
             >
               <div className="arena-combo-layout">
                 <Group gap={8} wrap="nowrap" align="flex-start" className="arena-combo-models">
@@ -123,7 +123,7 @@ export default function ComboArenaList({ combos, grid, selectedTrialId, onSelect
                 </Stack>
 
                 <div className={`arena-score-card score-tone--${tone}`}>
-                  <span className="arena-score-label">Eval score</span>
+                  <span className="arena-score-label">{COPY.app.judgeScore}</span>
                   <span className="arena-score-number">{score ?? "—"}</span>
                   <span className="arena-score-scale">/100</span>
                 </div>
